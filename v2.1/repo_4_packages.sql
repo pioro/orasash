@@ -316,25 +316,27 @@ PROCEDURE get_latch is
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
-         insert into  SASH.sash_sqlstats 
+           insert into  SASH.sash_sqlstats
               (       dbid ,
                       sample_time ,
                       address ,
                       hash_value ,
+                      child_number,
                       executions ,
                       elapsed_time ,
                       rows_processed  )
-                select l_dbid,
+                select /*+DRIVING_SITE(sql) */  l_dbid,
                        sysdate,
                        sql.address,
                        sql.hash_value,
+                       sql.child_number,
                        sql.executions,
                        sql.elapsed_time,
-                       sql.rows_processed 
+                       sql.rows_processed
                 from gv$sql@sashprod sql
-                where sql.hash_value in ( 
-                       select  hash_value
-                       from SASH.sash_sqltxt 
+                where (sql.hash_value, sql.child_number) in (
+                       select  sqlids.sql_id, sqlids.child_number
+                       from SASH.sash_sqlids sqlids
                        where l_dbid = dbid );
          commit;
        end get_sqlstats;
