@@ -602,8 +602,8 @@ CREATE OR REPLACE PACKAGE BODY sash_pkg AS
                        sql.rows_processed 
                 from gv$sql sql
                 where sql.hash_value in ( 
-                       select  hash_value
-                       from SASH.sash_sqltxt@SASHREPO 
+                       select  sqltxt.sql_id
+                       from SASH.sash_sqltxt@SASHREPO sqltxt
                        where l_dbid = dbid );
          commit;
        end get_sqlstats;
