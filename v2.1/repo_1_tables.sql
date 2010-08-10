@@ -47,11 +47,20 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
         drop table sash_users;
         drop table sash_data_files;
         drop table sash_sesstat;
+		drop table sash_stats;
         drop table sash_sessids;
         drop table sash_latch;
         drop table sash_targets;
         drop table sash_target;
+		drop table sash_extents;
+		drop table sash_configuration;
+		drop table sash_hist_sample;
 
+		
+ drop sequence hist_id_seq;
+ create sequence hist_id_seq;		
+		
+		
  create table sash1 ( 
                 dbid           number, 
                 sample_time     date,
@@ -156,16 +165,23 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
             message      varchar2(1000));
 			
 			
-		 create table sash.sash_stats
+		 create table sash_stats
 			(
 			  dbid        number,
 			  statistic#  number,
 			  name        varchar2(4000)
 			);
 
+		 create table sash_hist_sample(
+			hist_sample_id  number,
+			dbid			number,
+			hist_date		date
+		 );
+			
          create table sash_sqlplans(
-              statement_id    varchar2(30),
-              timestamp       date,
+			  hist_sample_id  number,
+              sql_id    	  varchar2(13),
+			  plan_hash_value number,
               remarks         varchar2(80),
               operation       varchar2(30),
               options         varchar2(255),
@@ -197,7 +213,7 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
               child_number     number,
               dbid number);
          create index sash_sqlplans_i  
-              on sash_sqlplans(dbid, statement_id);
+              on sash_sqlplans(dbid, sql_id);
          create table sash_params(
               dbid number, 
               name varchar2(64),
@@ -268,9 +284,9 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
                piece);
          create table sash_sqlstats( 
               dbid number, 
-              sample_time date, 
+              hist_sample_id number, 
               address raw(8), 
-              hash_value number, 
+              sql_id varchar2(13), 
               child_number number,
               executions number, 
               elapsed_time number, 
@@ -279,6 +295,7 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
               cpu_time number, 
               fetches number, 
               rows_processed number); 
+			  
          create table sash_objs(
               dbid number,  
               object_id number, 
@@ -318,7 +335,7 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
 		 
          create unique index sash_targets_i on sash_targets ( host,sid,home);
 
-		create or replace force view sash.sash_all
+		create or replace force view sash_all
 		as
 		   select * from sash1
 		   union all
@@ -462,12 +479,13 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
 
    create or replace view all_objects as select * from sash_objs
           where dbid = ( select dbid from sash_target);
-
-
+	  
    create table sash_configuration (
       param       	varchar2(30),
       value		    varchar2(100)
    );
+   
+   create unique index sash_configuration_unq on sash_configuration(param);
    
    insert into sash_configuration values ('SASH RETENTION','w');
    commit;
