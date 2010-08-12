@@ -1,7 +1,5 @@
--- (c) Kyle Hailey 2007
--- (c) Marcin Przepiorowski 2010
 
--- File revision : $Revision$
+-- (c) Kyle Hailey 2007
 
   drop view sashnow;
 
