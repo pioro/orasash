@@ -15,11 +15,11 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
  	      PROCEDURE get_latch ; 
           PROCEDURE get_users  ;
 	      PROCEDURE get_params  ;
-          PROCEDURE get_sqltxt(l_dbid number)  ;
-          PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number)  ;
+          PROCEDURE get_sqltxt  ;
+          PROCEDURE get_sqlstats  ;
 		  PROCEDURE get_sqlid (v_sql_id number) ;
           PROCEDURE get_data_files  ;
-		  PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number) ;
+          PROCEDURE get_sqlplans  ;
 		  PROCEDURE get_extents;
           PROCEDURE get_event_names  ;
           PROCEDURE collect (v_sleep number, loops number) ;
@@ -47,7 +47,7 @@ CREATE OR REPLACE PACKAGE BODY sash_pkg AS
           l_dbid number;
           begin
             select dbid into l_dbid from v$database@sashprod;
-            insert into sash_users 
+            insert into SASH.sash_users 
                      (dbid, username, user_id)
                      select l_dbid,username,user_id from dba_users@sashprod; 
             commit;
@@ -57,7 +57,7 @@ PROCEDURE get_latch is
  l_dbid number;
  begin
  select dbid into l_dbid from v$database@sashprod;
- insert into sash_latch
+ insert into SASH.sash_latch
  (dbid, latch#, name)
  select l_dbid,latch#, name from v$latch@sashprod;
  commit;
@@ -69,7 +69,7 @@ PROCEDURE get_latch is
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
-            insert into sash_params 
+            insert into SASH.sash_params 
                   ( dbid, name, value)
                   select l_dbid,name,value from gv$parameter@sashprod;
             commit;
@@ -85,10 +85,10 @@ PROCEDURE get_latch is
           begin 
             select dbid into l_dbid from v$database@sashprod;
             select count(*) into cnt from 
-                sash_target;
+                SASH.sash_target;
             if cnt = 0 then 
                 insert into 
-                   sash_target ( dbid )
+                   SASH.sash_target ( dbid )
                    values (l_dbid);
             end if;
             commit;
@@ -103,7 +103,7 @@ PROCEDURE get_latch is
                from v$instance@sashprod;
             select substr(file_spec,0,instr(file_spec,'bin')-2) into l_oracle_home
             from DBA_LIBRARIES@sashprod  where library_name = 'DBMS_SUMADV_LIB';
-            insert into sash_targets 
+            insert into SASH.sash_targets 
                   (       dbid, 
                           host, 
                           home, 
@@ -140,13 +140,13 @@ PROCEDURE get_latch is
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
          /*
-          insert into sash_data_files@SASHREPO 
+          insert into SASH.sash_data_files@SASHREPO 
                   ( dbid, file_name, file_id, tablespace_name )
                    select l_dbid, file_name, file_id, tablespace_name 
                    from dba_data_files;
          */
          for file_rec in files_cur loop 
-          insert into sash_data_files 
+          insert into SASH.sash_data_files 
                   ( dbid, file_name, file_id, tablespace_name ) values
                    ( l_dbid, 
                     file_rec.file_name, 
@@ -162,7 +162,7 @@ PROCEDURE get_latch is
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
-          insert into sash_extents 
+          insert into SASH.sash_extents 
                   ( dbid, segment_name, partition_name, segment_type, tablespace_name, 	extent_id, file_id, block_id, bytes, blocks, relative_fno)
                    select l_dbid, segment_name, partition_name, segment_type, tablespace_name, 	extent_id, file_id, block_id, bytes, blocks, relative_fno from dba_extents@sashprod;
        end get_extents;
@@ -174,7 +174,7 @@ PROCEDURE get_latch is
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
-          insert into sash_event_names 
+          insert into SASH.sash_event_names 
                   ( dbid, event#, name )
                    select l_dbid, event#, name from gv$event_name@sashprod;
        end get_event_names;
@@ -185,7 +185,7 @@ PROCEDURE get_latch is
        begin
          l_dbid:=get_dbid;
          -- get object info  for top 20 sql in SASH over the last hour
-         insert into  sash_objs
+         insert into  SASH.sash_objs
                 (      dbid, 
                        object_id, 
                        owner, 
@@ -202,7 +202,7 @@ PROCEDURE get_latch is
                 where object_id  in ( 
                         select current_obj# from (
                         select count(*) cnt, CURRENT_OBJ#
-                        from sash 
+                        from SASH.sash 
                         where
                                l_dbid = dbid
                            and current_obj# > 0
@@ -211,18 +211,31 @@ PROCEDURE get_latch is
                         order by cnt desc )
                      where rownum < 21)
                   and object_id not in (select object_id from 
-                       sash_objs 
+                       SASH.sash_objs 
                        where l_dbid = dbid) ;
          commit;
        end get_objs;
 
-       PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number) is
+       PROCEDURE get_all is
        begin
+          get_sqltxt;
+          commit;
+          get_sqlstats;
+          commit;
+          get_objs;
+          commit;
+          get_sqlplans;
+          commit;
+       end get_all;
+
+       PROCEDURE get_sqlplans is
+          l_dbid number;
+       begin
+         l_dbid:=get_dbid;
          -- get sql stats  for top 20 sql in SASH over the last hour
-         insert into  sash_sqlplans 
-              (     hist_sample_id	,
-					sql_id    		,
-					plan_hash_value ,
+         insert into  SASH.sash_sqlplans 
+              (     statement_id    ,
+                    timestamp       ,
                     remarks         ,
                     operation       ,
                     options         ,
@@ -252,9 +265,8 @@ PROCEDURE get_latch is
                     filter_predicates ,
                     dbid )
                 select 
-				      l_hist_samp_id,
-                      hash_value,    
-					  plan_hash_value,
+                      hash_value,
+                       sysdate,
                        'REMARKS',
                        OPERATION,
                        OPTIONS,
@@ -286,33 +298,35 @@ PROCEDURE get_latch is
                        l_dbid
                 from gv$sql_plan@sashprod sql
                 where sql.hash_value in ( 
-                       select sqltxt.sql_id
-                       from sash_sqltxt sqltxt 
+                       select  hash_value
+                       from SASH.sash_sqltxt 
                        where l_dbid = dbid )
-                  and sql.plan_hash_value not in (
-                       select sqlplans.plan_hash_value
-                       from sash_sqlplans sqlplans
+                  and sql.hash_value not in (
+                       select hash_value 
+                       from SASH.sash_sqlplans 
                        where l_dbid = dbid);
          commit;
        end get_sqlplans;
 
-       PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number) is
+       PROCEDURE get_sqlstats is
+          l_dbid number;
        begin
+         l_dbid:=get_dbid;
          -- get sql stats  for top 20 sql in SASH over the last hour
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
-           insert into  sash_sqlstats
+           insert into  SASH.sash_sqlstats
               (       dbid ,
-                      hist_sample_id ,
+                      sample_time ,
                       address ,
-                      sql_id ,
+                      hash_value ,
                       child_number,
                       executions ,
                       elapsed_time ,
                       rows_processed  )
                 select /*+DRIVING_SITE(sql) */  l_dbid,
-                       l_hist_samp_id,
+                       sysdate,
                        sql.address,
                        sql.hash_value,
                        sql.child_number,
@@ -322,7 +336,7 @@ PROCEDURE get_latch is
                 from gv$sql@sashprod sql
                 where (sql.hash_value, sql.child_number) in (
                        select  sqlids.sql_id, sqlids.child_number
-                       from sash_sqlids sqlids
+                       from SASH.sash_sqlids sqlids
                        where l_dbid = dbid );
          commit;
        end get_sqlstats;
@@ -335,7 +349,7 @@ PROCEDURE get_latch is
        begin
          l_dbid:=get_dbid;
 		  
-         update  sash_sqlids
+         update  SASH.sash_sqlids
                 set 
                        last_found = sysdate ,
                        found_count = nvl(found_count,1) + 1
@@ -344,7 +358,7 @@ PROCEDURE get_latch is
                    and l_dbid = dbid;
          up_rows:=sql%rowcount;
          if up_rows = 0 then
-             insert into  sash_sqlids 
+             insert into  SASH.sash_sqlids 
                    ( dbid ,
                      address ,
                      sql_id ,
@@ -370,7 +384,7 @@ PROCEDURE get_latch is
                   from gv$sql@sashprod sqlt
                   where 
                         sqlt.hash_value = v_sql_id;
-             insert into  sash_sqltxt 
+             insert into  SASH.sash_sqltxt 
                   ( dbid ,
                     address ,
                     sql_id ,
@@ -387,14 +401,15 @@ PROCEDURE get_latch is
          commit;
        end;	   
 
-       PROCEDURE get_sqltxt(l_dbid number) is
+       PROCEDURE get_sqltxt is
+          l_dbid number;
           v_sqlid  number;
 		  v_sqllimit number:=0;
           up_rows  number:=0;
           cursor c_sqlids is
                         select sql_id from (
                           select count(*) cnt, sql_id
-                          from sash 
+                          from SASH.sash 
                           where l_dbid = dbid
                              and sql_id != 0
                              and sample_time > (sysdate - 1/24)
@@ -403,6 +418,7 @@ PROCEDURE get_latch is
                         where rownum < v_sqllimit;
 
        begin
+         l_dbid:=get_dbid;
 		 begin
 			select to_number(value) into v_sqllimit from sash_configuration where param='SQL LIMIT';
 		    dbms_output.put_line('v limit ' || v_sqllimit);
@@ -410,7 +426,7 @@ PROCEDURE get_latch is
 		      v_sqllimit:=21;
 		 end;
          for f_sqlid in c_sqlids loop
-           update  sash_sqlids
+           update  SASH.sash_sqlids
                 set 
                        last_found = sysdate ,
                        found_count = nvl(found_count,1) + 1
@@ -422,7 +438,7 @@ PROCEDURE get_latch is
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
-             insert into  sash_sqlids 
+             insert into  SASH.sash_sqlids 
                    ( dbid ,
                      address ,
                      sql_id ,
@@ -448,7 +464,7 @@ PROCEDURE get_latch is
                   from gv$sql@sashprod sqlt
                   where 
                         sqlt.hash_value = f_sqlid.sql_id;
-             insert into  sash_sqltxt 
+             insert into  SASH.sash_sqltxt 
                   ( dbid ,
                     address ,
                     sql_id ,
@@ -489,13 +505,13 @@ PROCEDURE get_latch is
 */
 
        PROCEDURE collect(v_sleep number, loops number) is
-          --sash_rec sash@SASHREPO%rowtype;
+          --sash_rec SASH.sash@SASHREPO%rowtype;
           sash_rec sash%rowtype;
           l_dbid number;
           cpart    number := -1;      /* current partition number */
           part     number := 1;       /* new partition number */
           cur_sashseq   number := 0;
-          -- return sash@SASHREPO%rowtype is
+          -- return SASH.sash@SASHREPO%rowtype is
           cursor sash_cur is
                select a.*, 
                       cur_sashseq sample_id ,
@@ -507,7 +523,7 @@ PROCEDURE get_latch is
             for i in 1..loops loop
               --this looks questionable -looks expensive 
               select  sashseq.nextval into cur_sashseq from dual;
-              -- update  sash_targets@SASHREPO set sashseq = cur_ashseq
+              -- update  SASH.sash_targets@SASHREPO set sashseq = cur_ashseq
               -- where dbid = l_dbid;
               dbms_output.put_line('loop # '||to_char(i));
               --change partitions every day of the week  1-7 , SUN = 1
@@ -530,7 +546,7 @@ PROCEDURE get_latch is
                   --      to_char( sash_rec.SESSION_ID)||','||
                   --      to_char(sash_rec.SQL_ID)||','||
                   --      to_char(sash_rec.EVENT#) );
-                  insert into sash
+                  insert into SASH.sash
                    (  DBID,
                       SAMPLE_TIME,
                       SESSION_ID,
@@ -594,23 +610,6 @@ PROCEDURE get_latch is
             end loop;
        end collect;
 
-       PROCEDURE get_all is
-		l_hist_samp_id	number;
-		l_dbid number;
-	   begin
-		  select hist_id_seq.nextval into l_hist_samp_id from dual;
-		  l_dbid:=get_dbid;
-          get_sqltxt(l_dbid);
-          commit;
-          get_sqlstats(l_hist_samp_id, l_dbid);
-          commit;
-          get_objs;
-          commit;
-          get_sqlplans(l_hist_samp_id, l_dbid);
-          commit;
-		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
-       end get_all;	   
-	   
 END sash_pkg;
 /
 
