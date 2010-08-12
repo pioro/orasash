@@ -1,3 +1,3 @@
 -- Revision $Revision$
 
-$Date$ $Id$ $Rev$ $Author$ $URL$
+$Rev$ $Date$
