@@ -1,7 +1,12 @@
+---------------------------------------------------------------------------------------------------
+-- File Revision $Rev$
+-- Last change $Date$
+-- SVN URL $HeadURL$
+---------------------------------------------------------------------------------------------------
 
 -- (c) Kyle Hailey 2007
--- Changes: add password and tablespace prompt, add new privileges to sash user on repository -- Marcin Przepiorowski 2010
-
+-- (c) Marcin Przepiorowski 2010
+-- v2.1 Changes: add password and tablespace prompt, add new privileges to sash user on repository
 
  -- connect / as sysdba
  --  create tablespace perfstat datafile '&1perfstat.dbf' size 100M;
