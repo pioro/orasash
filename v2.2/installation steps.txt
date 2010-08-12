@@ -1,3 +1,6 @@
+-- Revision number $Rev$
+-- Modification date $Date$
+
 Steps
 
 1. create a sash user - using following script - repo_0_user.sql - as user SYS on repository database
