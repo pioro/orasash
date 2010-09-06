@@ -1,5 +1,12 @@
+---------------------------------------------------------------------------------------------------
+-- File Revision $Rev$
+-- Last change $Date$
+-- SVN URL $HeadURL$
+---------------------------------------------------------------------------------------------------
 
 -- (c) Kyle Hailey 2007
+-- v2.0 List of events with classes
+
 
 create table waitgroups (
  NAME         VARCHAR2(64),

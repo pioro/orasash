@@ -1,5 +1,14 @@
+---------------------------------------------------------------------------------------------------
+-- File Revision $Rev$
+-- Last change $Date$
+-- SVN URL $HeadURL$
+---------------------------------------------------------------------------------------------------
 
 -- (c) Kyle Hailey 2007
+-- (c) Marcin Przepiorowski 2010
+-- v2.0 Part of other file
+-- v2.1 - Separated into new file to simplify installation process
+--      - New access user and privileges added
 
   drop view sashnow;
 

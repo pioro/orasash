@@ -1,5 +1,13 @@
+---------------------------------------------------------------------------------------------------
+-- File Revision $Rev$
+-- Last change $Date$
+-- SVN URL $HeadURL$
+---------------------------------------------------------------------------------------------------
 
 -- (c) Kyle Hailey 2007
+-- (c) Marcin Przepiorowski 2010
+-- v2.1 Changes: New procedures for stopping and starting jobs, purge procedure extended
+-- v2.2 Changes: todo - add purging of historical data
 
    
 CREATE OR REPLACE PACKAGE sash_repo AS

@@ -1,6 +1,16 @@
+---------------------------------------------------------------------------------------------------
+-- File Revision $Rev$
+-- Last change $Date$
+-- SVN URL $HeadURL$
+---------------------------------------------------------------------------------------------------
 
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
+-- v2.0 Package deployed on target database, database link pointed to repository 
+-- v2.1 Changes: - Deployed on repository database not on target, 
+--               - Data collection via DB link pointed to target, 
+--               - Bug fixing in get_sqlids
+-- v2.2 Changes: todo - 
 
 
 create sequence sashseq ;

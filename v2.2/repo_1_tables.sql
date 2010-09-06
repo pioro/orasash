@@ -1,67 +1,84 @@
+---------------------------------------------------------------------------------------------------
+-- File Revision $Rev$
+-- Last change $Date$
+-- SVN URL $HeadURL$
+---------------------------------------------------------------------------------------------------
+
 -- (c) Kyle Hailey 2007
--- updated: Marcin Przepiorowski 2010
+-- (c) Marcin Przepiorowski 2010
+-- v2.1 Changes: Increase number of tables to poor man paritioning, add configuration tables
+-- v2.2 Changes: Schema clean up - hash values, statament id changed to sql_id,
+--               sql_id changed to 10g and above format - varachar2(13)
+--               new table, sequence and columns for better history clean up - T: sash_hist_sample, S: hist_id_seq C:hist_sample_id
+--               new table - sash_extents to keep extentes from target database
 
-Prompt 'Are you connected as the SASH user? '
+Prompt Are you connected as the SASH schema owner? All objects will be dropped and recreated
 Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : ' 
---connect sash/&password
 
-        drop table sash1;
-        drop table sash2;
-        drop table sash3;
-        drop table sash4;
-        drop table sash5;
-        drop table sash6;
-        drop table sash7;
-        drop table sash8;		
-        drop table sash9;		
-		drop table sash10;
-		drop table sash11;
-		drop table sash12;
-		drop table sash13;
-		drop table sash14;
-		drop table sash15;
-		drop table sash16;
-		drop table sash17;
-		drop table sash18;
-		drop table sash19;
-		drop table sash20;
-		drop table sash21;
-		drop table sash22;
-		drop table sash23;
-		drop table sash24;
-		drop table sash25;
-		drop table sash26;
-		drop table sash27;
-		drop table sash28;
-		drop table sash29;
-		drop table sash30;
-		drop table sash31;
-        drop table sash_log;
-        drop table sash_params;
-        drop table sash_sqlids;
-        drop table sash_sqltxt;
-        drop table sash_sqlstats; 
-        drop table sash_sqlplans;
-        drop table sash_event_names;
-        drop table sash_objs;
-        drop table sash_users;
-        drop table sash_data_files;
-        drop table sash_sesstat;
-		drop table sash_stats;
-        drop table sash_sessids;
-        drop table sash_latch;
-        drop table sash_targets;
-        drop table sash_target;
-		drop table sash_extents;
-		drop table sash_configuration;
-		drop table sash_hist_sample;
+Prompt Dropping old objects
 
-		
- drop sequence hist_id_seq;
- create sequence hist_id_seq;		
-		
-		
- create table sash1 ( 
+drop table sash1;
+drop table sash2;
+drop table sash3;
+drop table sash4;
+drop table sash5;
+drop table sash6;
+drop table sash7;
+drop table sash8;		
+drop table sash9;		
+drop table sash10;
+drop table sash11;
+drop table sash12;
+drop table sash13;
+drop table sash14;
+drop table sash15;
+drop table sash16;
+drop table sash17;
+drop table sash18;
+drop table sash19;
+drop table sash20;
+drop table sash21;
+drop table sash22;
+drop table sash23;
+drop table sash24;
+drop table sash25;
+drop table sash26;
+drop table sash27;
+drop table sash28;
+drop table sash29;
+drop table sash30;
+drop table sash31;
+drop table sash_log;
+drop table sash_params;
+drop table sash_sqlids;
+drop table sash_sqltxt;
+drop table sash_sqlstats; 
+drop table sash_sqlplans;
+drop table sash_event_names;
+drop table sash_objs;
+drop table sash_users;
+drop table sash_data_files;
+drop table sash_sesstat;
+drop table sash_stats;
+drop table sash_sessids;
+drop table sash_latch;
+drop table sash_targets;
+drop table sash_target;
+drop table sash_extents;
+drop table sash_configuration;
+drop table sash_hist_sample;
+drop table waitgroups;
+drop sequence hist_id_seq;
+ 
+Prompt Create sequence
+
+create sequence hist_id_seq;				
+
+Prompt Create tables
+
+-- create first table to keep active sessions data
+
+create table sash1 ( 
                 dbid           number, 
                 sample_time     date,
                 session_id      number,
@@ -91,70 +108,73 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
                 sample_id       number,
                 machine         varchar2(64), 
                 terminal        varchar2(30)
-               ) 
-         ;
-         create table sash2 as select * from sash1 where rownum <1;
-         create table sash3 as select * from sash1 where rownum <1;
-         create table sash4 as select * from sash1 where rownum <1;
-         create table sash5 as select * from sash1 where rownum <1;
-         create table sash6 as select * from sash1 where rownum <1;
-         create table sash7 as select * from sash1 where rownum <1;
-         create table sash8 as select * from sash1 where rownum <1;		 
-		 create table sash9 as select * from sash1 where rownum <1;
-		 create table sash10 as select * from sash1 where rownum <1;
-		 create table sash11 as select * from sash1 where rownum <1;
-		 create table sash12 as select * from sash1 where rownum <1;
-		 create table sash13 as select * from sash1 where rownum <1;
-		 create table sash14 as select * from sash1 where rownum <1;
-		 create table sash15 as select * from sash1 where rownum <1;
-		 create table sash16 as select * from sash1 where rownum <1;
-		 create table sash17 as select * from sash1 where rownum <1;
-		 create table sash18 as select * from sash1 where rownum <1;
-		 create table sash19 as select * from sash1 where rownum <1;
-		 create table sash20 as select * from sash1 where rownum <1;
-		 create table sash21 as select * from sash1 where rownum <1;
-		 create table sash22 as select * from sash1 where rownum <1;
-		 create table sash23 as select * from sash1 where rownum <1;
-		 create table sash24 as select * from sash1 where rownum <1;
-		 create table sash25 as select * from sash1 where rownum <1;
-		 create table sash26 as select * from sash1 where rownum <1;
-		 create table sash27 as select * from sash1 where rownum <1;
-		 create table sash28 as select * from sash1 where rownum <1;
-		 create table sash29 as select * from sash1 where rownum <1;
-		 create table sash30 as select * from sash1 where rownum <1;
-		 create table sash31 as select * from sash1 where rownum <1;
-		 
-         create index sash_1i on sash1(dbid,sample_time) ;
-         create index sash_2i on sash2(dbid,sample_time) ;
-         create index sash_3i on sash3(dbid,sample_time) ;
-         create index sash_4i on sash4(dbid,sample_time) ;
-         create index sash_5i on sash5(dbid,sample_time) ;
-         create index sash_6i on sash6(dbid,sample_time) ;
-         create index sash_7i on sash7(dbid,sample_time) ;
-		 create index sash_8i on sash8(dbid,sample_time) ;
-		create index sash_9i on sash9(dbid,sample_time) ;
-		create index sash_10i on sash10(dbid,sample_time) ;
-		create index sash_11i on sash11(dbid,sample_time) ;
-		create index sash_12i on sash12(dbid,sample_time) ;
-		create index sash_13i on sash13(dbid,sample_time) ;
-		create index sash_14i on sash14(dbid,sample_time) ;
-		create index sash_15i on sash15(dbid,sample_time) ;
-		create index sash_16i on sash16(dbid,sample_time) ;
-		create index sash_17i on sash17(dbid,sample_time) ;
-		create index sash_18i on sash18(dbid,sample_time) ;
-		create index sash_19i on sash19(dbid,sample_time) ;
-		create index sash_20i on sash20(dbid,sample_time) ;
-		create index sash_21i on sash21(dbid,sample_time) ;
-		create index sash_22i on sash22(dbid,sample_time) ;
-		create index sash_23i on sash23(dbid,sample_time) ;
-		create index sash_24i on sash24(dbid,sample_time) ;
-		create index sash_25i on sash25(dbid,sample_time) ;
-		create index sash_26i on sash26(dbid,sample_time) ;
-		create index sash_27i on sash27(dbid,sample_time) ;
-		create index sash_28i on sash28(dbid,sample_time) ;
-		create index sash_29i on sash29(dbid,sample_time) ;
-		create index sash_30i on sash30(dbid,sample_time) ;
-		create index sash_31i on sash31(dbid,sample_time) ;
+);
+
+-- create rest of active sessions tables to simulate poor man partitioning
+
+create table sash2 as select * from sash1 where rownum <1;
+create table sash3 as select * from sash1 where rownum <1;
+create table sash4 as select * from sash1 where rownum <1;
+create table sash5 as select * from sash1 where rownum <1;
+create table sash6 as select * from sash1 where rownum <1;
+create table sash7 as select * from sash1 where rownum <1;
+create table sash8 as select * from sash1 where rownum <1;		 
+create table sash9 as select * from sash1 where rownum <1;
+create table sash10 as select * from sash1 where rownum <1;
+create table sash11 as select * from sash1 where rownum <1;
+create table sash12 as select * from sash1 where rownum <1;
+create table sash13 as select * from sash1 where rownum <1;
+create table sash14 as select * from sash1 where rownum <1;
+create table sash15 as select * from sash1 where rownum <1;
+create table sash16 as select * from sash1 where rownum <1;
+create table sash17 as select * from sash1 where rownum <1;
+create table sash18 as select * from sash1 where rownum <1;
+create table sash19 as select * from sash1 where rownum <1;
+create table sash20 as select * from sash1 where rownum <1;
+create table sash21 as select * from sash1 where rownum <1;
+create table sash22 as select * from sash1 where rownum <1;
+create table sash23 as select * from sash1 where rownum <1;
+create table sash24 as select * from sash1 where rownum <1;
+create table sash25 as select * from sash1 where rownum <1;
+create table sash26 as select * from sash1 where rownum <1;
+create table sash27 as select * from sash1 where rownum <1;
+create table sash28 as select * from sash1 where rownum <1;
+create table sash29 as select * from sash1 where rownum <1;
+create table sash30 as select * from sash1 where rownum <1;
+create table sash31 as select * from sash1 where rownum <1;
+
+-- create indexes 		 
+create index sash_1i on sash1(dbid,sample_time) ;
+create index sash_2i on sash2(dbid,sample_time) ;
+create index sash_3i on sash3(dbid,sample_time) ;
+create index sash_4i on sash4(dbid,sample_time) ;
+create index sash_5i on sash5(dbid,sample_time) ;
+create index sash_6i on sash6(dbid,sample_time) ;
+create index sash_7i on sash7(dbid,sample_time) ;
+create index sash_8i on sash8(dbid,sample_time) ;
+create index sash_9i on sash9(dbid,sample_time) ;
+create index sash_10i on sash10(dbid,sample_time) ;
+create index sash_11i on sash11(dbid,sample_time) ;
+create index sash_12i on sash12(dbid,sample_time) ;
+create index sash_13i on sash13(dbid,sample_time) ;
+create index sash_14i on sash14(dbid,sample_time) ;
+create index sash_15i on sash15(dbid,sample_time) ;
+create index sash_16i on sash16(dbid,sample_time) ;
+create index sash_17i on sash17(dbid,sample_time) ;
+create index sash_18i on sash18(dbid,sample_time) ;
+create index sash_19i on sash19(dbid,sample_time) ;
+create index sash_20i on sash20(dbid,sample_time) ;
+create index sash_21i on sash21(dbid,sample_time) ;
+create index sash_22i on sash22(dbid,sample_time) ;
+create index sash_23i on sash23(dbid,sample_time) ;
+create index sash_24i on sash24(dbid,sample_time) ;
+create index sash_25i on sash25(dbid,sample_time) ;
+create index sash_26i on sash26(dbid,sample_time) ;
+create index sash_27i on sash27(dbid,sample_time) ;
+create index sash_28i on sash28(dbid,sample_time) ;
+create index sash_29i on sash29(dbid,sample_time) ;
+create index sash_30i on sash30(dbid,sample_time) ;
+create index sash_31i on sash31(dbid,sample_time) ;
 
          create or replace view sash as select * from sash1;
 
@@ -164,6 +184,7 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
             result       char(1),
             message      varchar2(1000));
 			
+		 create or replace public synonym sash_log for sash_log;
 			
 		 create table sash_stats
 			(
@@ -401,7 +422,7 @@ Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : '
 
 
 
-     drop table waitgroups;
+
      create table waitgroups (
            NAME         VARCHAR2(64),
            WAIT_CLASS   VARCHAR2(64)
