@@ -190,9 +190,17 @@ create index sash_31i on sash31(dbid,sample_time) ;
 			(
 			  dbid        number,
 			  statistic#  number,
-			  name        varchar2(4000)
+			  name        varchar2(4000),
+			  collect     number
 			);
 
+		create table sash_instance_stats (
+			dbid number,
+			sample_time date,
+			STATISTIC#  NUMBER,
+			VALUE NUMBER
+		);			
+			
 		 create table sash_hist_sample(
 			hist_sample_id  number,
 			dbid			number,
@@ -233,6 +241,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
               hash_value     number,
               child_number     number,
               dbid number);
+		 create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value);			  
          create index sash_sqlplans_i  
               on sash_sqlplans(dbid, sql_id);
          create table sash_params(
@@ -292,6 +301,8 @@ create index sash_31i on sash31(dbid,sample_time) ;
               (dbid,
                sql_id,
                child_number);
+         create index sash_sqlids_i2 on sash_sqlids
+              (sql_id,plan_hash_value);	
          create table sash_sqltxt
             ( dbid number,
               address raw(8),
@@ -333,6 +344,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
             host varchar2(30),
             home varchar2(100),
             sid  varchar2(10),
+			dbname varchar2(10),
             version varchar2(20),
             cpu_count number,
             sashseq number
