@@ -106,3 +106,4 @@ grant select on gv_$sql_plan to sash;
 grant select on gv_$sqltext to sash;
 grant select on v_$latch to sash;
 grant select on dba_extents to sash;
+grant select on v_$sysstat to sash;

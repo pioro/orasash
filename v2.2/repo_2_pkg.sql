@@ -153,24 +153,35 @@ procedure create_repository_jobs is
 
   procedure create_collection_jobs is
   vjob number; 
+  instnum number;
+  vwhat varchar2(4000);
   begin
+	begin
+		select value into instnum from sash_configuration where param='INSTANCE NUMBER';
+		exception when NO_DATA_FOUND then 
+		      instnum:=1;
+	end;
+	for i in 1..instnum loop
+	vwhat:='sash_pkg.collect(1,3600,' || i || ');';
+	dbms_output.put_line( 'dbms_job.submit ' || vwhat || ' i ' || i);
     dbms_job.submit( job       => vjob
-                        ,what      => 'sash_pkg.collect(1,3600);'
+                        ,what      => vwhat
                         ,next_date => sysdate
                         ,interval => 'trunc(sysdate+(1/(24)),''HH'')'
                         );
+	end loop;
     dbms_job.submit(job        => vjob
                         ,what      => 'sash_pkg.get_all;'
                         ,next_date => sysdate
                         ,interval  => 'trunc(sysdate+(1/(24)),''HH'')'
                         );
     commit;
-    exception
-          when others then
-             insert into sash_log (action, message,result) values 
-                  ('create_collection_jobs', '' ,'E');
-             commit;
-             RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ');	
+--    exception
+--          when others then
+--             insert into sash_log (action, message,result) values 
+--                  ('create_collection_jobs', '' ,'E');
+--             commit;
+--             RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ');	
    end;     
    
    

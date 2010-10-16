@@ -88,7 +88,7 @@ create table sash1 (
                 sql_address     varchar2(20),
                 sql_plan_hash_value  number,
                 sql_child_number  number,
-                sql_id          number,
+                sql_id          varchar2(13),
                 sql_opcode      number,
                 session_type    number,
                 event#          number,
@@ -107,7 +107,8 @@ create table sash1 (
                 FIXED_TABLE_SEQUENCE number,
                 sample_id       number,
                 machine         varchar2(64), 
-                terminal        varchar2(30)
+                terminal        varchar2(30),
+				inst_id		    number
 );
 
 -- create rest of active sessions tables to simulate poor man partitioning
@@ -184,6 +185,8 @@ create index sash_31i on sash31(dbid,sample_time) ;
             result       char(1),
             message      varchar2(1000));
 			
+		create global temporary table sash_hour_sqlid (sql_id varchar2(13), SQL_PLAN_HASH_VALUE number) on commit preserve rows;			
+			
 		 create or replace public synonym sash_log for sash_log;
 			
 		 create table sash_stats
@@ -210,6 +213,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
          create table sash_sqlplans(
 			  hist_sample_id  number,
               sql_id    	  varchar2(13),
+			  inst_id 		  number,
 			  plan_hash_value number,
               remarks         varchar2(80),
               operation       varchar2(30),
@@ -289,6 +293,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
             ( dbid number,
               address raw(8),
               sql_id  varchar(13),
+			  inst_id number,
               child_number number,
               plan_hash_value number,
               command_type number,
@@ -299,14 +304,16 @@ create index sash_31i on sash31(dbid,sample_time) ;
               found_count number );
          create unique index sash_sqlids_i on sash_sqlids
               (dbid,
+			   inst_id,
                sql_id,
+			   plan_hash_value,
                child_number);
          create index sash_sqlids_i2 on sash_sqlids
-              (sql_id,plan_hash_value);	
+              (sql_id,plan_hash_value);			   
          create table sash_sqltxt
             ( dbid number,
               address raw(8),
-              sql_id number,
+              sql_id varchar2(13),
               child_number number,
               piece number,
               sql_text varchar(64));
@@ -319,6 +326,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
               hist_sample_id number, 
               address raw(8), 
               sql_id varchar2(13), 
+			  inst_id number,
               child_number number,
               executions number, 
               elapsed_time number, 

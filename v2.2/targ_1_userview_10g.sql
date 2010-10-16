@@ -24,7 +24,7 @@
                  s.ksusesql      "SQL_ADDRESS",
                  s.ksusesph      "SQL_PLAN_HASH_VALUE",
                  decode(s.ksusesch, 65535, to_number(null), s.ksusesch) "SQL_CHILD_NUMBER",
-                 s.ksusesqh      "SQL_ID" ,
+                 s.ksusesqi      "SQL_ID" ,    /* real SQL ID starting 10g */ 
                  s.ksuudoct      "SQL_OPCODE"  /* aka SQL_OPCODE */,
                  s.ksuseflg      "SESSION_TYPE"  ,
                  s.ksuseopc      "EVENT# ",
@@ -84,3 +84,4 @@ grant select on gv_$sql_plan to sash;
 grant select on gv_$sqltext to sash;
 grant select on v_$latch to sash;
 grant select on dba_extents to sash;
+grant select on v_$sysstat to sash;
