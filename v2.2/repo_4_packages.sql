@@ -30,12 +30,12 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
           PROCEDURE get_sqlids(l_dbid number)  ;
 		  PROCEDURE get_sqltxt(l_dbid number) ;
           PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number)  ;
-		  PROCEDURE get_sqlid (v_sql_id number) ;
+		  PROCEDURE get_sqlid (v_sql_id varchar2) ;
           PROCEDURE get_data_files  ;
 		  PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number) ;
 		  PROCEDURE get_extents;
           PROCEDURE get_event_names  ;
-		  PROCEDURE collect_stats(v_sleep number, loops number);
+		  PROCEDURE collect_stats(v_sleep number, loops number, vinstance number);
           PROCEDURE collect (v_sleep number, loops number,vinstance number) ;
           FUNCTION get_dbid  return number ;
           PROCEDURE set_dbid  ;
@@ -64,7 +64,9 @@ CREATE OR REPLACE PACKAGE BODY sash_pkg AS
             insert into sash_users 
                      (dbid, username, user_id)
                      select l_dbid,username,user_id from dba_users@sashprod1; 
-            commit;
+			exception
+				when DUP_VAL_ON_INDEX then
+					sash_repo.log_message('GET_USERS', 'Already configured ?','W');
        end get_users;
 
 PROCEDURE get_latch is
@@ -96,7 +98,9 @@ PROCEDURE get_latch is
             insert into sash_params 
                   ( dbid, name, value)
                   select l_dbid,name,value from gv$parameter@sashprod1;
-            commit;
+			exception
+				when DUP_VAL_ON_INDEX then
+					sash_repo.log_message('GET_PARAMS', 'Already configured ?','W');				  
        end get_params;
 
        PROCEDURE set_dbid is
@@ -115,7 +119,6 @@ PROCEDURE get_latch is
                    sash_target ( dbid )
                    values (l_dbid);
             end if;
-            commit;
             select 
                       version,
                       host_name,
@@ -127,6 +130,7 @@ PROCEDURE get_latch is
                from v$instance@sashprod1;
             select substr(file_spec,0,instr(file_spec,'bin')-2) into l_oracle_home
             from DBA_LIBRARIES@sashprod1  where library_name = 'DBMS_SUMADV_LIB';
+			begin
             insert into sash_targets 
                   (       dbid, 
                           host, 
@@ -140,15 +144,10 @@ PROCEDURE get_latch is
                           l_instance_name,
                           0,
                           l_version); 
-/*
-                  values (l_dbid,
-                          '${TARG_HOST}',
-                          '${TARG_HOME}',
-                          '${TARG_SID}',
-                          0,
-                          l_version); 
-*/
-            commit;
+			exception
+				when DUP_VAL_ON_INDEX then
+					sash_repo.log_message('SET_DBID', 'Already configured ?','W');					
+			end;
        end set_dbid;
 
        PROCEDURE get_data_files is
@@ -170,13 +169,15 @@ PROCEDURE get_latch is
                    from dba_data_files;
          */
          for file_rec in files_cur loop 
-          insert into sash_data_files 
-                  ( dbid, file_name, file_id, tablespace_name ) values
+          insert into sash_data_files ( dbid, file_name, file_id, tablespace_name ) values
                    ( l_dbid, 
                     file_rec.file_name, 
                     file_rec.file_id, 
                     file_rec.tablespace_name );
          end loop;
+		exception
+				when DUP_VAL_ON_INDEX then
+					sash_repo.log_message('GET_DATA_FILES', 'Already configured ?','W');		 
        end get_data_files;
 
        PROCEDURE get_extents is
@@ -201,7 +202,10 @@ PROCEDURE get_latch is
           insert into sash_event_names 
                   ( dbid, event#, name )
                    select distinct l_dbid, event#, name from gv$event_name@sashprod1;
-       end get_event_names;
+ 		exception
+			when DUP_VAL_ON_INDEX then
+					sash_repo.log_message('GET_EVENT_NAMES', 'Already configured ?','W');
+end get_event_names;
 	   
 
 PROCEDURE get_objs(l_dbid number) is
@@ -241,22 +245,22 @@ type sash_sqlrec_type is table of sash_sqlplans%rowtype;
 sash_sqlrec  sash_sqlrec_type := sash_sqlrec_type();
 cursor c is
                 select /*+DRIVING_SITE(sql) */
-				      l_hist_samp_id,
                       sql.sql_id, 
 					  sql.inst_id,
-					  sqlids.plan_hash_value,
+					  sql.plan_hash_value,
                        'REMARKS' remarksdesc ,
                        sql.OPERATION,
                        sql.OPTIONS,
                        sql.OBJECT_NODE,
-                       null,
+                       sql.OBJECT_OWNER,
                        sql.OBJECT_NAME,
-                       0 a4,
-                       'OBJECT_TYPE',
+                       0,
+                       sql.OBJECT_TYPE,
                        sql.OPTIMIZER,
                        sql.SEARCH_COLUMNS,
                        sql.ID,
                        sql.PARENT_ID,
+					   sql.depth,
                        sql.POSITION,
                        sql.COST,
                        sql.CARDINALITY,
@@ -272,12 +276,10 @@ cursor c is
                        sql.TEMP_SPACE,
                        sql.ACCESS_PREDICATES,
                        sql.FILTER_PREDICATES,
-                       0 a1,
-					   0 a2,
 					   l_dbid 
-                from gv$sql_plan@sashprod1 sql, sash_sqlids sqlids
-                where sql.sql_id= sqlids.sql_id
-				and not exists (select 1 from sash_sqlplans sqlplans where sqlplans.plan_hash_value = sqlids.plan_hash_value 
+                from gv$sql_plan@sashprod1 sql, sash_hour_sqlid sqlids
+                where sql.sql_id= sqlids.sql_id and sql.plan_hash_value = sqlids.sql_plan_hash_value
+				and not exists (select 1 from sash_sqlplans sqlplans where sqlplans.plan_hash_value = sqlids.sql_plan_hash_value 
 										 and sqlplans.sql_id = sqlids.sql_id );
 begin
 open c;
@@ -301,16 +303,13 @@ cursor c is select /*+DRIVING_SITE(sql) */
                        sql.child_number,
                        sql.executions,
                        sql.elapsed_time,
-					   1, -- disk reads
-					   1, --buffer gets
-					   1, --cpu time
+					   sql.disk_reads,
+					   sql.buffer_gets,
+					   sql.cpu_time,
 					   sql.fetches,
                        sql.rows_processed
                 from gv$sql@sashprod1 sql
-                where (sql.sql_id, sql.child_number) in (
-                       select  sqlids.sql_id, sqlids.child_number
-                       from sash_sqlids sqlids
-                       where l_dbid = dbid );
+                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t  );
 	begin
 		open c;
 		fetch c bulk collect into sash_sqlstats_rec;
@@ -322,7 +321,7 @@ cursor c is select /*+DRIVING_SITE(sql) */
 end get_sqlstats;
 	   
 	   
-      PROCEDURE get_sqlid (v_sql_id number) is
+      PROCEDURE get_sqlid (v_sql_id varchar2) is
           l_dbid number;
 		  up_rows  number:=0;
  
@@ -393,7 +392,7 @@ PROCEDURE get_sqlids(l_dbid number) is
 			exception when NO_DATA_FOUND then 
 		      v_sqllimit:=21;
 		 end;
-		    	       dbms_output.put_line('start');
+		 dbms_output.put_line('start');
 		 insert into sash_hour_sqlid select sql_id, sql_plan_hash_value from (
                           select count(*) cnt, sql_id, sql_plan_hash_value
                           from sash 
@@ -404,7 +403,8 @@ PROCEDURE get_sqlids(l_dbid number) is
                           group by sql_id, sql_plan_hash_value
                           order by cnt desc )
                         where rownum < v_sqllimit;
-						   	       dbms_output.put_line('next');
+		dbms_output.put_line('next');
+		/*
            update  sash_sqlids
                 set 
                        last_found = sysdate ,
@@ -430,7 +430,7 @@ PROCEDURE get_sqlids(l_dbid number) is
                      found_count 
                    )
                   select /*+DRIVING_SITE(sqlt) */ 
-                       l_dbid ,
+                       /*l_dbid ,
                        sqlt.address,
                        sqlt.sql_id,
 					   sqlt.inst_id,
@@ -453,6 +453,7 @@ PROCEDURE get_sqlids(l_dbid number) is
            up_rows:=sql%rowcount;
 		   dbms_output.put_line(up_rows);		  
          commit;
+		 */
 end get_sqlids;
 
 
@@ -605,30 +606,40 @@ end get_sqltxt;
             end loop;
        end collect;
 	   
-	   procedure collect_stats(v_sleep number, loops number) is
+	   procedure collect_stats(v_sleep number, loops number, vinstance number) is
 		type sash_instance_stats_type is table of sash_instance_stats%rowtype;
 		session_rec sash_instance_stats_type;
 		session_rec1 sash_instance_stats_type;
 		session_rec_delta sash_instance_stats_type := sash_instance_stats_type();
+		sql_stat varchar2(4000);
+		sql_stat1 varchar2(4000);
+     	TYPE SashcurTyp IS REF CURSOR;
+		sash_cur   SashcurTyp;		  
+
 		begin
 		if session_rec_delta.count < 3 then 
 			session_rec_delta.extend(3);
 		end if;
+		
+		open sash_cur FOR sql_stat; 
+			  
+		sql_stat := 'select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value from v$sysstat@sashprod'|| vinstance || 'ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';
 		for l in 1..loops loop
-		select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value bulk collect into session_rec  from v$sysstat@sashprod1 ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1);
-		dbms_lock.sleep(v_sleep);
-		select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value bulk collect into session_rec1 from v$sysstat@sashprod1 ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1);
-		for i in 1..session_rec.count loop
-			session_rec_delta(i).value := session_rec1(i).value - session_rec(i).value;
-			session_rec_delta(i).sample_time := session_rec1(i).sample_time;
-			session_rec_delta(i).statistic# := session_rec1(i).statistic#;
-			session_rec_delta(i).dbid := 1;
-		end loop;
-		forall i in 1..session_rec_delta.count 
-			insert into sash_instance_stats values session_rec_delta(i);
-		--dbms_output.put_line('Commits ' || session_rec1(2).value ||' ' || session_rec(2).value || ' rate ' || to_number((session_rec1(2).value - session_rec(2).value))/15 );
-		--dbms_output.put_line('Calls ' || session_rec1(3).value ||' ' || session_rec(3).value || ' rate ' || to_number((session_rec1(3).value - session_rec(3).value))/15 );
-		commit;
+			fetch sash_cur bulk collect into session_rec;
+			dbms_lock.sleep(v_sleep);
+			fetch sash_cur bulk collect into session_rec1;
+			--select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value bulk collect into session_rec1 from v$sysstat@sashprod1 ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1);
+			for i in 1..session_rec.count loop
+				session_rec_delta(i).value := session_rec1(i).value - session_rec(i).value;
+				session_rec_delta(i).sample_time := session_rec1(i).sample_time;
+				session_rec_delta(i).statistic# := session_rec1(i).statistic#;
+				session_rec_delta(i).dbid := 1;
+			end loop;
+			forall i in 1..session_rec_delta.count 
+				insert into sash_instance_stats values session_rec_delta(i);
+			--dbms_output.put_line('Commits ' || session_rec1(2).value ||' ' || session_rec(2).value || ' rate ' || to_number((session_rec1(2).value - session_rec(2).value))/15 );
+			--dbms_output.put_line('Calls ' || session_rec1(3).value ||' ' || session_rec(3).value || ' rate ' || to_number((session_rec1(3).value - session_rec(3).value))/15 );
+			commit;
 		end loop;   
 	   end collect_stats;
 

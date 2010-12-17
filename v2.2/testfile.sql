@@ -1,3 +1,0 @@
--- Revision $Revision$
-
-$Rev$ $Date$

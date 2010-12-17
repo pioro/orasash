@@ -12,18 +12,29 @@
    
 CREATE OR REPLACE PACKAGE sash_repo AS
           PROCEDURE purge;
+		  PROCEDURE configure_db;
 		  PROCEDURE setup_jobs;
 		  PROCEDURE stop_collecting_jobs;
 		  PROCEDURE start_collecting_jobs;
 		  procedure create_repository_jobs;
           procedure stop_and_remove_rep_jobs;
 		  PROCEDURE set_retention(rtype varchar2);
-          END sash_repo;
+		  procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
+END sash_repo;
 /
 show errors
 
 
 CREATE OR REPLACE PACKAGE BODY sash_repo AS
+
+procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
+  PRAGMA AUTONOMOUS_TRANSACTION; 
+  begin
+	insert into sash_log (action, message,result) values (vaction, vmessage,vresults);
+	commit;
+  end;
+
+
   procedure purge is
           l_text        varchar2(4000);
           l_day         number;
@@ -49,12 +60,28 @@ CREATE OR REPLACE PACKAGE BODY sash_repo AS
         execute immediate l_text;
        exception
           when others then
-             insert into sash_log (action, message,result) values 
-                  ('PURGE PARTITION', l_text || ' rtype value ' || rtype,'E');
-             commit;
+			 log_message('PURGE PARTITION', l_text || ' rtype value ' || rtype,'E');
              RAISE_APPLICATION_ERROR(-20010,'SASH purge errored ');
   end purge;
 
+  procedure configure_db is 
+  begin
+   dbms_output.put_line( 'set_dbid');
+   sash_pkg.set_dbid;
+   dbms_output.put_line( 'get_event');
+   sash_pkg.get_event_names;
+   dbms_output.put_line( '3');
+   sash_pkg.get_users;
+   dbms_output.put_line( '4');
+   sash_pkg.get_params;
+   dbms_output.put_line( '5');
+   sash_pkg.get_data_files;
+   update sash_event_names sen set sen.wait_class = ( select wg.wait_class from gv$event_name@sashprod1 wg where wg.name=sen.name);
+   commit; 
+  end configure_db;
+  
+  
+  
   procedure set_retention(rtype varchar2) is 
   begin
       update sash_configuration set value = rtype where param='SASH RETENTION';

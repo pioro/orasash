@@ -211,7 +211,6 @@ create index sash_31i on sash31(dbid,sample_time) ;
 		 );
 			
          create table sash_sqlplans(
-			  hist_sample_id  number,
               sql_id    	  varchar2(13),
 			  inst_id 		  number,
 			  plan_hash_value number,
@@ -227,6 +226,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
               search_columns  number,
               id              numeric,
               parent_id       numeric,
+			  depth		      numeric,
               position        numeric,
               cost            numeric,
               cardinality     numeric,
@@ -242,8 +242,6 @@ create index sash_31i on sash31(dbid,sample_time) ;
               temp_space      numeric,
               access_predicates varchar2(4000),
               filter_predicates varchar2(4000),
-              hash_value     number,
-              child_number     number,
               dbid number);
 		 create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value);			  
          create index sash_sqlplans_i  
