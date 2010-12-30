@@ -23,6 +23,7 @@ create sequence sashseq ;
 CREATE OR REPLACE PACKAGE sash_pkg AS
 --          PROCEDURE print (v_sleep number, loops number) ;
           PROCEDURE get_all  ;
+		  procedure get_stats ;
 		  procedure get_one(v_sql_id varchar2);
           PROCEDURE get_objs(l_dbid number)  ;
  	      PROCEDURE get_latch ; 
@@ -55,7 +56,6 @@ CREATE OR REPLACE PACKAGE BODY sash_pkg AS
           begin
             select dbid into l_dbid from v$database@sashprod1;
             return l_dbid;
-            -- return 1;
        end get_dbid;
 
        PROCEDURE get_users is
@@ -288,8 +288,6 @@ fetch c bulk collect into sash_sqlrec;
 forall i in 1 .. sash_sqlrec.count 
          insert into sash_sqlplans values sash_sqlrec(i);          
 close c;		   
---update sash_sqlplans set HIST_SAMPLE_ID = l_hist_samp_id, dbid = l_dbid where HIST_SAMPLE_ID = -1;
---commit;
 end get_sqlplans;
 
 PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number) is
@@ -300,6 +298,7 @@ cursor c is select /*+DRIVING_SITE(sql) */
                        l_hist_samp_id,
                        sql.address,
                        sql.sql_id,
+					   sql.plan_hash_value,
 					   sql.inst_id,
                        sql.child_number,
                        sql.executions,
@@ -309,8 +308,7 @@ cursor c is select /*+DRIVING_SITE(sql) */
 					   sql.cpu_time,
 					   sql.fetches,
                        sql.rows_processed,
-					   1,
-					   1
+					   1,1,1,1,1,1,1
                 from gv$sql@sashprod1 sql
                 where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t  );
 	begin
@@ -319,12 +317,15 @@ cursor c is select /*+DRIVING_SITE(sql) */
 		forall i in 1..sash_sqlstats_rec.count 
 			insert into sash_sqlstats values sash_sqlstats_rec(i);	
 			
-		update sash_sqlstats s set (s.ELAPSED_TIME_DELTA,s.DISK_READS_DELTA) = (select s.ELAPSED_TIME - old.ELAPSED_TIME, s.DISK_READS - old.DISK_READS from sash_sqlstats old where 
+		update sash_sqlstats s set (s.executions_delta, s.ELAPSED_TIME_DELTA,s.DISK_READS_DELTA,s.buffer_gets_delta,s.cpu_time_delta,s.fetches_delta,s.rows_processed_delta) = 
+		(select s.executions - old.executions, s.ELAPSED_TIME - old.ELAPSED_TIME, s.DISK_READS - old.DISK_READS, s.buffer_gets - old.buffer_gets, s.cpu_time - old.cpu_time,
+		 s.fetches - old.fetches, s.rows_processed - old.rows_processed
+		from sash_sqlstats old where 
 		old.HIST_SAMPLE_ID = s.HIST_SAMPLE_ID - 1 and old.sql_id = s.sql_id and old.child_number = s.child_number)
 		where HIST_SAMPLE_ID = l_hist_samp_id;	
 end get_sqlstats;
-	   
-	   
+
+
 PROCEDURE get_sqlid(l_dbid number, v_sql_id varchar2) is
 begin
 		 insert into sash_hour_sqlid select sql_id, sql_plan_hash_value from sash where l_dbid = dbid and sql_id = v_sql_id;
@@ -497,19 +498,22 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
 		sql_stat1 varchar2(4000);
      	TYPE SashcurTyp IS REF CURSOR;
 		sash_cur   SashcurTyp;		  
+		sash_cur1   SashcurTyp;
 
 		begin
 		if session_rec_delta.count < 3 then 
 			session_rec_delta.extend(3);
 		end if;
-		
-		open sash_cur FOR sql_stat; 
 			  
-		sql_stat := 'select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value from v$sysstat@sashprod'|| vinstance || 'ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';
+		sql_stat := 'select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value from v$sysstat@sashprod'|| vinstance || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
+		open sash_cur FOR sql_stat; 
+		
 		for l in 1..loops loop
+			open sash_cur FOR sql_stat; 
 			fetch sash_cur bulk collect into session_rec;
 			dbms_lock.sleep(v_sleep);
-			fetch sash_cur bulk collect into session_rec1;
+			open sash_cur1 FOR sql_stat; 
+			fetch sash_cur1 bulk collect into session_rec1;
 			--select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value bulk collect into session_rec1 from v$sysstat@sashprod1 ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1);
 			for i in 1..session_rec.count loop
 				session_rec_delta(i).value := session_rec1(i).value - session_rec(i).value;
@@ -522,6 +526,8 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
 			--dbms_output.put_line('Commits ' || session_rec1(2).value ||' ' || session_rec(2).value || ' rate ' || to_number((session_rec1(2).value - session_rec(2).value))/15 );
 			--dbms_output.put_line('Calls ' || session_rec1(3).value ||' ' || session_rec(3).value || ' rate ' || to_number((session_rec1(3).value - session_rec(3).value))/15 );
 			commit;
+			close sash_cur;
+			close sash_cur1;
 		end loop;   
 	   end collect_stats;
 	   
@@ -535,7 +541,6 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
           get_sqlid(l_dbid,v_sql_id);
 		  get_sqltxt(l_dbid);
           get_sqlstats(l_hist_samp_id, l_dbid);
-          get_objs(l_dbid);
           get_sqlplans(l_hist_samp_id, l_dbid);
 		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
 		  commit;
@@ -550,8 +555,8 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
           get_sqlids(l_dbid);
 		  get_sqltxt(l_dbid);
           get_sqlstats(l_hist_samp_id, l_dbid);
-          get_objs(l_dbid);
           get_sqlplans(l_hist_samp_id, l_dbid);
+          get_objs(l_dbid);
 		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
 		  commit;
        end get_all;	   

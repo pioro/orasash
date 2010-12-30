@@ -323,7 +323,8 @@ create index sash_31i on sash31(dbid,sample_time) ;
               dbid number, 
               hist_sample_id number, 
               address raw(8), 
-              sql_id varchar2(13), 
+              sql_id varchar2(13),
+			  plan_hash_value number,
 			  inst_id number,
               child_number number,
               executions number, 
@@ -332,7 +333,17 @@ create index sash_31i on sash31(dbid,sample_time) ;
               buffer_gets number, 
               cpu_time number, 
               fetches number, 
-              rows_processed number); 
+              rows_processed number,
+              executions_delta number, 
+              elapsed_time_delta number, 
+              disk_reads_delta number, 
+              buffer_gets_delta number, 
+              cpu_time_delta number, 
+              fetches_delta number, 
+              rows_processed_delta number
+			  ); 
+			  
+		create index sash_sqlstats_i1 on sash_sqlstats  (hist_sample_id);
 			  
          create table sash_objs(
               dbid number,  

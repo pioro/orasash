@@ -196,6 +196,16 @@ procedure create_repository_jobs is
                         ,next_date => sysdate
                         ,interval => 'trunc(sysdate+(1/(24)),''HH'')'
                         );
+						
+	vwhat:='sash_pkg.collect_stats(60,60,' || i || ');';
+	dbms_output.put_line( 'dbms_job.submit ' || vwhat || ' i ' || i);
+    dbms_job.submit( job       => vjob
+                        ,what      => vwhat
+                        ,next_date => sysdate
+                        ,interval => 'trunc(sysdate+(1/(24)),''HH'')'
+                        );
+						
+						
 	end loop;
     dbms_job.submit(job        => vjob
                         ,what      => 'sash_pkg.get_all;'
