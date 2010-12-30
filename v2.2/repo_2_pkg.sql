@@ -213,12 +213,12 @@ procedure create_repository_jobs is
                         ,interval  => 'trunc(sysdate+(1/(24)),''HH'')'
                         );
     commit;
---    exception
---          when others then
---             insert into sash_log (action, message,result) values 
---                  ('create_collection_jobs', '' ,'E');
---             commit;
---             RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ');	
+    exception
+          when others then
+             insert into sash_log (action, message,result) values 
+                  ('create_collection_jobs', '' ,'E');
+             commit;
+             RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ');	
    end;     
    
    

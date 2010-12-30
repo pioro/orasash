@@ -202,7 +202,9 @@ create index sash_31i on sash31(dbid,sample_time) ;
 			sample_time date,
 			STATISTIC#  NUMBER,
 			VALUE NUMBER
-		);			
+		);	
+
+        create index sash_instance_stats_id1 on sash_instance_stats(sample_time, STATISTIC#, dbid);		
 			
 		 create table sash_hist_sample(
 			hist_sample_id  number,

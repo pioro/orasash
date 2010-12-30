@@ -350,7 +350,8 @@ PROCEDURE get_sqlids(l_dbid number) is
 			v_lastall:=1;
 		 end if;
 		 dbms_output.put_line('start');
-		 insert into sash_hour_sqlid select sql_id, sql_plan_hash_value from (
+		 -- added distinct as there can be more than one child
+		 insert into sash_hour_sqlid select distinct sql_id, sql_plan_hash_value from (
                           select count(*) cnt, sql_id, sql_plan_hash_value
                           from sash 
                           where l_dbid = dbid
@@ -492,42 +493,36 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
 	   procedure collect_stats(v_sleep number, loops number, vinstance number) is
 		type sash_instance_stats_type is table of sash_instance_stats%rowtype;
 		session_rec sash_instance_stats_type;
-		session_rec1 sash_instance_stats_type;
-		session_rec_delta sash_instance_stats_type := sash_instance_stats_type();
+		--session_rec1 sash_instance_stats_type;
+		--session_rec_delta sash_instance_stats_type := sash_instance_stats_type();
 		sql_stat varchar2(4000);
-		sql_stat1 varchar2(4000);
+		--sql_stat1 varchar2(4000);
      	TYPE SashcurTyp IS REF CURSOR;
 		sash_cur   SashcurTyp;		  
-		sash_cur1   SashcurTyp;
+		--sash_cur1   SashcurTyp;
 
 		begin
+		/*
 		if session_rec_delta.count < 3 then 
 			session_rec_delta.extend(3);
 		end if;
-			  
+		*/	  
+		
 		sql_stat := 'select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value from v$sysstat@sashprod'|| vinstance || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
-		open sash_cur FOR sql_stat; 
+		--open sash_cur FOR sql_stat; 
 		
 		for l in 1..loops loop
 			open sash_cur FOR sql_stat; 
 			fetch sash_cur bulk collect into session_rec;
-			dbms_lock.sleep(v_sleep);
-			open sash_cur1 FOR sql_stat; 
-			fetch sash_cur1 bulk collect into session_rec1;
-			--select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value bulk collect into session_rec1 from v$sysstat@sashprod1 ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1);
-			for i in 1..session_rec.count loop
-				session_rec_delta(i).value := session_rec1(i).value - session_rec(i).value;
-				session_rec_delta(i).sample_time := session_rec1(i).sample_time;
-				session_rec_delta(i).statistic# := session_rec1(i).statistic#;
-				session_rec_delta(i).dbid := 1;
-			end loop;
-			forall i in 1..session_rec_delta.count 
-				insert into sash_instance_stats values session_rec_delta(i);
-			--dbms_output.put_line('Commits ' || session_rec1(2).value ||' ' || session_rec(2).value || ' rate ' || to_number((session_rec1(2).value - session_rec(2).value))/15 );
+
+			forall i in 1..session_rec.count 
+				insert into sash_instance_stats values session_rec(i);
+			--dbms_output.put_line('Commits ' || session_rec(2).value ||' ' || session_rec(2).value || ' rate ' || to_number((session_rec(2).value - session_rec(2).value))/15 );
 			--dbms_output.put_line('Calls ' || session_rec1(3).value ||' ' || session_rec(3).value || ' rate ' || to_number((session_rec1(3).value - session_rec(3).value))/15 );
+			
 			commit;
 			close sash_cur;
-			close sash_cur1;
+			dbms_lock.sleep(v_sleep);
 		end loop;   
 	   end collect_stats;
 	   
