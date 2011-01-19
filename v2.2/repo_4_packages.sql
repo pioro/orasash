@@ -37,9 +37,9 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
 		  PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number) ;
 		  PROCEDURE get_extents;
           PROCEDURE get_event_names  ;
-		  PROCEDURE collect_stats(v_sleep number, loops number, vinstance number);
-          PROCEDURE collect (v_sleep number, loops number,vinstance number) ;
-          FUNCTION get_dbid  return number ;
+		  PROCEDURE collect_stats(v_sleep number, loops number, vdblink varchar2, vinstance number);
+          PROCEDURE collect (v_sleep number, loops number,vdblink varchar2, vinstance number) ;
+          FUNCTION get_dbid (v_dblink varchar2) return number ;
           PROCEDURE set_dbid  ;
           END sash_pkg;
 /
@@ -51,20 +51,20 @@ show errors
 -- ZZZZ
 CREATE OR REPLACE PACKAGE BODY sash_pkg AS
 
-       FUNCTION get_dbid return number is
+       FUNCTION get_dbid(v_dblink varchar2) return number is
           l_dbid number;
           begin
-            select dbid into l_dbid from v$database@sashprod1;
+            execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
             return l_dbid;
        end get_dbid;
 
-       PROCEDURE get_users is
+       PROCEDURE get_users(v_dblink varchar2) is
           l_dbid number;
           begin
-            select dbid into l_dbid from v$database@sashprod1;
-            insert into sash_users 
+            execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
+            execute immediate 'insert into sash_users 
                      (dbid, username, user_id)
-                     select l_dbid,username,user_id from dba_users@sashprod1; 
+                     select ' || l_dbid || ',username,user_id from dba_users@'||v_dblink;
 			exception
 				when DUP_VAL_ON_INDEX then
 					sash_repo.log_message('GET_USERS', 'Already configured ?','W');
@@ -406,7 +406,7 @@ end get_sqltxt;
        end print;
 */
 
-PROCEDURE collect(v_sleep number, loops number, vinstance number) is
+PROCEDURE collect(v_sleep number, loops number, vdblink varchar2, vinstance number) is
           sash_rec sash%rowtype;
 		  TYPE SashcurTyp IS REF CURSOR;
 		  sash_cur   SashcurTyp;		  
@@ -416,7 +416,7 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
           
           begin
             l_dbid:=get_dbid;
-			sql_stat := 'select a.*, 1 sample_id, null machine,  null terminal, null inst_id from sys.sashnow@sashprod' || vinstance || ' a';
+			sql_stat := 'select a.*, 1 sample_id, null machine,  null terminal, null inst_id from sys.sashnow@' || vdblink || ' a';
             for i in 1..loops loop
               select  sashseq.nextval into cur_sashseq from dual;
               open sash_cur FOR sql_stat; 
@@ -490,7 +490,7 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
             end loop;
        end collect;
 	   
-	   procedure collect_stats(v_sleep number, loops number, vinstance number) is
+	   procedure collect_stats(v_sleep number, loops number, vdblink varchar2, vinstance number) is
 		type sash_instance_stats_type is table of sash_instance_stats%rowtype;
 		session_rec sash_instance_stats_type;
 		--session_rec1 sash_instance_stats_type;
@@ -498,7 +498,8 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
 		sql_stat varchar2(4000);
 		--sql_stat1 varchar2(4000);
      	TYPE SashcurTyp IS REF CURSOR;
-		sash_cur   SashcurTyp;		  
+		sash_cur   SashcurTyp;		
+	    l_dbid number;		
 		--sash_cur1   SashcurTyp;
 
 		begin
@@ -508,7 +509,8 @@ PROCEDURE collect(v_sleep number, loops number, vinstance number) is
 		end if;
 		*/	  
 		
-		sql_stat := 'select /*+DRIVING_SITE(ss) */ 1, sysdate, statistic#, value from v$sysstat@sashprod'|| vinstance || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
+		l_dbid:=get_dbid;
+		sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from v$sysstat@'|| vdblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
 		--open sash_cur FOR sql_stat; 
 		
 		for l in 1..loops loop

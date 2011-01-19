@@ -145,37 +145,37 @@ create table sash30 as select * from sash1 where rownum <1;
 create table sash31 as select * from sash1 where rownum <1;
 
 -- create indexes 		 
-create index sash_1i on sash1(dbid,sample_time) ;
-create index sash_2i on sash2(dbid,sample_time) ;
-create index sash_3i on sash3(dbid,sample_time) ;
-create index sash_4i on sash4(dbid,sample_time) ;
-create index sash_5i on sash5(dbid,sample_time) ;
-create index sash_6i on sash6(dbid,sample_time) ;
-create index sash_7i on sash7(dbid,sample_time) ;
-create index sash_8i on sash8(dbid,sample_time) ;
-create index sash_9i on sash9(dbid,sample_time) ;
-create index sash_10i on sash10(dbid,sample_time) ;
-create index sash_11i on sash11(dbid,sample_time) ;
-create index sash_12i on sash12(dbid,sample_time) ;
-create index sash_13i on sash13(dbid,sample_time) ;
-create index sash_14i on sash14(dbid,sample_time) ;
-create index sash_15i on sash15(dbid,sample_time) ;
-create index sash_16i on sash16(dbid,sample_time) ;
-create index sash_17i on sash17(dbid,sample_time) ;
-create index sash_18i on sash18(dbid,sample_time) ;
-create index sash_19i on sash19(dbid,sample_time) ;
-create index sash_20i on sash20(dbid,sample_time) ;
-create index sash_21i on sash21(dbid,sample_time) ;
-create index sash_22i on sash22(dbid,sample_time) ;
-create index sash_23i on sash23(dbid,sample_time) ;
-create index sash_24i on sash24(dbid,sample_time) ;
-create index sash_25i on sash25(dbid,sample_time) ;
-create index sash_26i on sash26(dbid,sample_time) ;
-create index sash_27i on sash27(dbid,sample_time) ;
-create index sash_28i on sash28(dbid,sample_time) ;
-create index sash_29i on sash29(dbid,sample_time) ;
-create index sash_30i on sash30(dbid,sample_time) ;
-create index sash_31i on sash31(dbid,sample_time) ;
+create index sash_1i on sash1(sample_time,dbid) ;
+create index sash_2i on sash2(sample_time,dbid) ;
+create index sash_3i on sash3(sample_time,dbid) ;
+create index sash_4i on sash4(sample_time,dbid) ;
+create index sash_5i on sash5(sample_time,dbid) ;
+create index sash_6i on sash6(sample_time,dbid) ;
+create index sash_7i on sash7(sample_time,dbid) ;
+create index sash_8i on sash8(sample_time,dbid) ;
+create index sash_9i on sash9(sample_time,dbid) ;
+create index sash_10i on sash10(sample_time,dbid) ;
+create index sash_11i on sash11(sample_time,dbid) ;
+create index sash_12i on sash12(sample_time,dbid) ;
+create index sash_13i on sash13(sample_time,dbid) ;
+create index sash_14i on sash14(sample_time,dbid) ;
+create index sash_15i on sash15(sample_time,dbid) ;
+create index sash_16i on sash16(sample_time,dbid) ;
+create index sash_17i on sash17(sample_time,dbid) ;
+create index sash_18i on sash18(sample_time,dbid) ;
+create index sash_19i on sash19(sample_time,dbid) ;
+create index sash_20i on sash20(sample_time,dbid) ;
+create index sash_21i on sash21(sample_time,dbid) ;
+create index sash_22i on sash22(sample_time,dbid) ;
+create index sash_23i on sash23(sample_time,dbid) ;
+create index sash_24i on sash24(sample_time,dbid) ;
+create index sash_25i on sash25(sample_time,dbid) ;
+create index sash_26i on sash26(sample_time,dbid) ;
+create index sash_27i on sash27(sample_time,dbid) ;
+create index sash_28i on sash28(sample_time,dbid) ;
+create index sash_29i on sash29(sample_time,dbid) ;
+create index sash_30i on sash30(sample_time,dbid) ;
+create index sash_31i on sash31(sample_time,dbid) ;
 
          create or replace view sash as select * from sash1;
 
@@ -199,6 +199,7 @@ create index sash_31i on sash31(dbid,sample_time) ;
 
 		create table sash_instance_stats (
 			dbid number,
+			inst_id number,
 			sample_time date,
 			STATISTIC#  NUMBER,
 			VALUE NUMBER
@@ -358,15 +359,17 @@ create index sash_31i on sash31(dbid,sample_time) ;
               (dbid, object_id);
 
          create table sash_target (dbid number);
+		 
          create table sash_targets (
             dbid number,
             host varchar2(30),
-            home varchar2(100),
-            sid  varchar2(10),
-			dbname varchar2(10),
-            version varchar2(20),
-            cpu_count number,
-            sashseq number
+			port number,
+			dbname varchar2(30),
+			sid varchar2(8),
+			inst_num number,
+            db_link varchar(4000),
+			version varchar2(20),
+            cpu_count number						
          );
 		 
 		 create table sash_extents (

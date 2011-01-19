@@ -14,8 +14,8 @@ accept TNSALIAS default sash prompt "Enter target database/instance TNS alias ? 
 accept INSTNUM default 1 prompt "Enter target instance number ? [default 1]"
 prompt "Target database tns alias is : " &TNSALIAS
 
-drop database link sashprod&INSTNUM;
-create database link sashprod&INSTNUM connect to sash identified by &SASH_PASS using '&TNSALIAS';
+drop database link &TNSALIAS&INSTNUM;
+create database link &TNSALIAS&INSTNUM connect to sash identified by &SASH_PASS using '&TNSALIAS';
 
 prompt "Check database link - row from dual table is expected"
-select * from dual@sashprod&INSTNUM;
+select * from dual@&TNSALIAS&INSTNUM;

@@ -12,7 +12,8 @@
    
 CREATE OR REPLACE PACKAGE sash_repo AS
           PROCEDURE purge;
-		  PROCEDURE configure_db;
+--		  PROCEDURE configure_db;
+		  procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0);
 		  PROCEDURE setup_jobs;
 		  PROCEDURE stop_collecting_jobs;
 		  PROCEDURE start_collecting_jobs;
@@ -64,6 +65,7 @@ procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
              RAISE_APPLICATION_ERROR(-20010,'SASH purge errored ');
   end purge;
 
+  /*
   procedure configure_db is 
   begin
    dbms_output.put_line( 'set_dbid');
@@ -79,7 +81,7 @@ procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
    update sash_event_names sen set sen.wait_class = ( select wg.wait_class from gv$event_name@sashprod1 wg where wg.name=sen.name);
    commit; 
   end configure_db;
-  
+  */
   
   
   procedure set_retention(rtype varchar2) is 
@@ -265,8 +267,34 @@ procedure create_repository_jobs is
              commit;
              RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs errored ');		 
 	 end;
-  
-  
+
+procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0) is
+v_dblink varchar2(30);
+v_dblink_target varchar2(4000);
+no_db_link EXCEPTION;
+PRAGMA EXCEPTION_INIT(no_db_link, -2024);
+v_dbid number;
+v_check number;
+
+begin
+	v_dblink_target:='(DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST =' || v_host || ')(PORT = ' || v_port || ')))(CONNECT_DATA = (SID = ' || v_sid || ')))';
+	v_dblink := v_db_name || v_inst_num;
+    begin
+		execute immediate 'drop database link ' || v_dblink;
+		dbms_output.put_line('Link dropped');
+	exception when no_db_link then
+			log_message('add_db', 'no db link - moving forward ' || v_dblink  ,'W');
+	end;
+	execute immediate 'create database link ' || v_dblink || ' connect to sash identified by ' || v_sash_pass || ' using ''' || v_dblink_target || '''';
+	execute immediate 'select dbid from v$database@' || v_dblink into v_dbid;
+	select count(*) into v_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num;
+	if v_check = 0 then 
+		insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, v_version, v_cpu_count);
+	else 
+			log_message('add_db', 'Database ' || v_db_name || ' instance ' || v_inst_num || ' already added','W');	
+	end if;
+end;
+
 end sash_repo;
 /
 show err 
