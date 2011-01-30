@@ -13,6 +13,10 @@ Steps
 
 3. create user and view on target - targ_1_userview.sql - as SYS user on monitored database
 
+exec sash_repo.add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0) is
+
+exec sash_repo.add_db('venus-vip', 1521, 'sash', 'test', 'test1', 1, '11.2.0.2', 8);
+
 4. create database link (from rep to prod) using my version, or from prod to rep using orginal - repo_3_dblink.sql - as user SYS on repository database - issue with 11g targets - target user has to have password in uppercase 
 
 4. create a sash packages on rep - repo_4_packages.sql - as user SYS on repository database

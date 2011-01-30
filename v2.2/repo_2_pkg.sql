@@ -18,6 +18,7 @@ CREATE OR REPLACE PACKAGE sash_repo AS
 		  PROCEDURE stop_collecting_jobs;
 		  PROCEDURE start_collecting_jobs;
 		  procedure create_repository_jobs;
+		  procedure create_collection_jobs;
           procedure stop_and_remove_rep_jobs;
 		  PROCEDURE set_retention(rtype varchar2);
 		  procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
@@ -166,7 +167,7 @@ procedure create_repository_jobs is
   procedure remove_collection_jobs is
   begin
     for i in  ( select job from user_jobs
-                where what like '%sash%'
+                where what like '%sash_pkg%'
                 ) loop
         dbms_output.put_line( 'dbms_job.remove ' || i.job );
         dbms_job.remove( i.job );
@@ -185,49 +186,51 @@ procedure create_repository_jobs is
   instnum number;
   vwhat varchar2(4000);
   begin
-	begin
-		select value into instnum from sash_configuration where param='INSTANCE NUMBER';
-		exception when NO_DATA_FOUND then 
-		      instnum:=1;
-	end;
-	for i in 1..instnum loop
-	vwhat:='sash_pkg.collect(1,3600,' || i || ');';
-	dbms_output.put_line( 'dbms_job.submit ' || vwhat || ' i ' || i);
+
+	for i in (select db_link, inst_num from sash_targets) loop
+	vwhat:='begin sash_pkg.collect(1,3600,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
+	dbms_output.put_line( 'dbms_job.submit ' || vwhat );
     dbms_job.submit( job       => vjob
                         ,what      => vwhat
                         ,next_date => sysdate
                         ,interval => 'trunc(sysdate+(1/(24)),''HH'')'
                         );
 						
-	vwhat:='sash_pkg.collect_stats(60,60,' || i || ');';
-	dbms_output.put_line( 'dbms_job.submit ' || vwhat || ' i ' || i);
+	vwhat:='begin sash_pkg.collect_stats(60,60,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
+	dbms_output.put_line( 'dbms_job.submit ' || vwhat );
     dbms_job.submit( job       => vjob
                         ,what      => vwhat
                         ,next_date => sysdate
                         ,interval => 'trunc(sysdate+(1/(24)),''HH'')'
-                        );
-						
-						
-	end loop;
+                        );						
+
+	vwhat:='begin sash_pkg.get_all('''|| i.db_link || ''',' || i.inst_num || '); end;';
+	dbms_output.put_line( 'dbms_job.submit ' || vwhat );						
     dbms_job.submit(job        => vjob
-                        ,what      => 'sash_pkg.get_all;'
+                        ,what      => vwhat
                         ,next_date => sysdate
                         ,interval  => 'trunc(sysdate+(1/(24)),''HH'')'
                         );
+						
+	end loop;
     commit;
+	/*
     exception
           when others then
              insert into sash_log (action, message,result) values 
                   ('create_collection_jobs', '' ,'E');
              commit;
              RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ');	
+    */
    end;     
    
    
   procedure setup_jobs is
   begin
+    stop_collecting_jobs;
 	remove_collection_jobs;
 	create_collection_jobs;
+	stop_and_remove_rep_jobs;
 	create_repository_jobs;
   end;
   

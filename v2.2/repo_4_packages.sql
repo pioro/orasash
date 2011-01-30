@@ -22,25 +22,25 @@ create sequence sashseq ;
 --
 CREATE OR REPLACE PACKAGE sash_pkg AS
 --          PROCEDURE print (v_sleep number, loops number) ;
-          PROCEDURE get_all  ;
-		  procedure get_stats ;
-		  procedure get_one(v_sql_id varchar2);
-          PROCEDURE get_objs(l_dbid number)  ;
- 	      PROCEDURE get_latch ; 
-          PROCEDURE get_users  ;
-	      PROCEDURE get_params  ;
-		  PROCEDURE get_sqltxt(l_dbid number) ;
-          PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number)  ;
-		  PROCEDURE get_sqlid(l_dbid number, v_sql_id varchar2) ;
-		  procedure get_sqlids(l_dbid number);
-          PROCEDURE get_data_files  ;
-		  PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number) ;
-		  PROCEDURE get_extents;
-          PROCEDURE get_event_names  ;
-		  PROCEDURE collect_stats(v_sleep number, loops number, vdblink varchar2, vinstance number);
-          PROCEDURE collect (v_sleep number, loops number,vdblink varchar2, vinstance number) ;
+          PROCEDURE get_all(v_dblink varchar2, v_inst_num number)  ;
+		  procedure get_stats(v_dblink varchar2) ;
+		  procedure get_one(v_sql_id varchar2,v_dblink varchar2, v_inst_num number);
+          PROCEDURE get_objs(l_dbid number, v_dblink varchar2)  ;
+ 	      PROCEDURE get_latch(v_dblink varchar2) ; 
+          PROCEDURE get_users(v_dblink varchar2)  ;
+	      PROCEDURE get_params(v_dblink varchar2)  ;
+		  PROCEDURE get_sqltxt(l_dbid number, v_dblink varchar2) ;
+          PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number)  ;
+		  PROCEDURE get_sqlid(l_dbid number, v_sql_id varchar2, v_dblink varchar2) ;
+		  procedure get_sqlids(l_dbid number, v_dblink varchar2);
+          PROCEDURE get_data_files(v_dblink varchar2)  ;
+		  PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number,v_dblink varchar2) ;
+		  PROCEDURE get_extents(v_dblink varchar2);
+          PROCEDURE get_event_names(v_dblink varchar2)  ;
+		  PROCEDURE collect_stats(v_sleep number, loops number, v_dblink varchar2, vinstance number);
+          PROCEDURE collect (v_sleep number, loops number,v_dblink varchar2, vinstance number) ;
           FUNCTION get_dbid (v_dblink varchar2) return number ;
-          PROCEDURE set_dbid  ;
+          PROCEDURE set_dbid ( v_dblink varchar2)  ;
           END sash_pkg;
 /
 show errors
@@ -70,41 +70,34 @@ CREATE OR REPLACE PACKAGE BODY sash_pkg AS
 					sash_repo.log_message('GET_USERS', 'Already configured ?','W');
        end get_users;
 
-PROCEDURE get_latch is
+PROCEDURE get_latch(v_dblink varchar2) is
  l_dbid number;
  begin
- select dbid into l_dbid from v$database@sashprod1;
- insert into sash_latch
- (dbid, latch#, name)
- select l_dbid,latch#, name from v$latch@sashprod1;
+ execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
+ execute immediate 'insert into sash_latch (dbid, latch#, name) select ' || l_dbid || ',latch#, name from v$latch@'||v_dblink;
  commit;
  end get_latch; 
  
- procedure get_stats is
+ procedure get_stats(v_dblink varchar2) is
  l_dbid number;
  begin
-  select dbid into l_dbid from v$database@sashprod1;
-  insert into sash_stats select l_dbid, STATISTIC#, name, 0 from v$sysstat@sashprod1;
+ execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
+ execute immediate 'insert into sash_stats select ' || l_dbid || ', STATISTIC#, name, 0 from v$sysstat@'||v_dblink;
   commit;
  end get_stats;
  
  
-       PROCEDURE get_params is
+       PROCEDURE get_params(v_dblink varchar2) is
           l_dbid number;
           begin
-            select dbid into l_dbid from v$database@sashprod1;
-            -- using gv$ because of problem with the error
-            -- ORA-02070: database SASHREPO does not 
-            -- support operator USERENV in this context
-            insert into sash_params 
-                  ( dbid, name, value)
-                  select l_dbid,name,value from gv$parameter@sashprod1;
+            execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
+            execute immediate 'insert into sash_params ( dbid, name, value) select ' || l_dbid || ',name,value from v$parameter@'||v_dblink;
 			exception
 				when DUP_VAL_ON_INDEX then
 					sash_repo.log_message('GET_PARAMS', 'Already configured ?','W');				  
        end get_params;
 
-       PROCEDURE set_dbid is
+       PROCEDURE set_dbid(v_dblink varchar2) is
           l_dbid number;
           l_version varchar(17);
           l_oracle_home varchar2(150);
@@ -112,7 +105,7 @@ PROCEDURE get_latch is
           l_host varchar2(30);
           cnt number;
           begin 
-            select dbid into l_dbid from v$database@sashprod1;
+            execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
             select count(*) into cnt from 
                 sash_target;
             if cnt = 0 then 
@@ -120,6 +113,7 @@ PROCEDURE get_latch is
                    sash_target ( dbid )
                    values (l_dbid);
             end if;
+			/*
             select 
                       version,
                       host_name,
@@ -149,76 +143,76 @@ PROCEDURE get_latch is
 				when DUP_VAL_ON_INDEX then
 					sash_repo.log_message('SET_DBID', 'Already configured ?','W');					
 			end;
+			*/
        end set_dbid;
 
-       PROCEDURE get_data_files is
+       PROCEDURE get_data_files(v_dblink varchar2) is
           l_dbid number;
-          --v_file_name varchar2(513);
-          --v_file_id number;
-          --v_tablespace_name varchar2(30);
-          cursor files_cur is
-             select file_name, file_id, tablespace_name from dba_data_files@sashprod1;
-       begin
-          l_dbid:=get_dbid;
-            -- using gv$ because of problem with the error
-            -- ORA-02070: database SASHREPO does not 
-            -- support operator USERENV in this context
-         /*
-          insert into sash_data_files@SASHREPO 
-                  ( dbid, file_name, file_id, tablespace_name )
-                   select l_dbid, file_name, file_id, tablespace_name 
-                   from dba_data_files;
-         */
-         for file_rec in files_cur loop 
-          insert into sash_data_files ( dbid, file_name, file_id, tablespace_name ) values
+          sql_stat varchar2(4000);
+		  TYPE SashcurTyp IS REF CURSOR;
+		  sash_cur   SashcurTyp;	
+          sash_rec sash_data_files%rowtype;		  
+		  
+		 begin
+         l_dbid:=get_dbid(v_dblink);
+		 sql_stat:= 'select '|| l_dbid ||', file_name, file_id, tablespace_name from dba_data_files@'||v_dblink;
+		 open sash_cur FOR sql_stat; 
+		 loop
+           fetch sash_cur into sash_rec;
+           exit when sash_cur%notfound;	 
+           insert into sash_data_files ( dbid, file_name, file_id, tablespace_name ) values
                    ( l_dbid, 
-                    file_rec.file_name, 
-                    file_rec.file_id, 
-                    file_rec.tablespace_name );
+                    sash_rec.file_name, 
+                    sash_rec.file_id, 
+                    sash_rec.tablespace_name );
          end loop;
 		exception
 				when DUP_VAL_ON_INDEX then
 					sash_repo.log_message('GET_DATA_FILES', 'Already configured ?','W');		 
        end get_data_files;
 
-       PROCEDURE get_extents is
+       PROCEDURE get_extents(v_dblink varchar2) is
           l_dbid number;
        begin
-          l_dbid:=get_dbid;
+          l_dbid:=get_dbid(v_dblink);
             -- using gv$ because of problem with the error
             -- ORA-02070: database SASHREPO does not 
             -- support operator USERENV in this context
+			/*
           insert into sash_extents 
                   ( dbid, segment_name, partition_name, segment_type, tablespace_name, 	extent_id, file_id, block_id, bytes, blocks, relative_fno)
                    select l_dbid, segment_name, partition_name, segment_type, tablespace_name, 	extent_id, file_id, block_id, bytes, blocks, relative_fno from dba_extents@sashprod1;
+			*/
        end get_extents;
-	   
-	   PROCEDURE get_event_names is
+
+PROCEDURE get_event_names(v_dblink varchar2) is
           l_dbid number;
+		  
        begin
-          l_dbid:=get_dbid;
-            -- using gv$ because of problem with the error
-            -- ORA-02070: database SASHREPO does not 
-            -- support operator USERENV in this context
-          insert into sash_event_names 
-                  ( dbid, event#, name )
-                   select distinct l_dbid, event#, name from gv$event_name@sashprod1;
+          l_dbid:=get_dbid(v_dblink);
+          execute immediate 'insert into sash_event_names ( dbid, event#, name ) select distinct '|| l_dbid ||', event#, name from v$event_name@' || v_dblink;
  		exception
 			when DUP_VAL_ON_INDEX then
 					sash_repo.log_message('GET_EVENT_NAMES', 'Already configured ?','W');
 end get_event_names;
 	   
 
-PROCEDURE get_objs(l_dbid number) is
+PROCEDURE get_objs(l_dbid number, v_dblink varchar2) is
 type sash_objs_type is table of sash_objs%rowtype;
 sash_objsrec  sash_objs_type := sash_objs_type();
-cursor c_sashobjs is select /*+DRIVING_SITE(o) */ l_dbid, 
+type ctype is ref cursor;
+C_SASHOBJS ctype;
+sql_stat varchar2(4000);
+
+
+begin
+sql_stat:='select /*+DRIVING_SITE(o) */ :1, 
                        o.object_id,
                        o.owner,
                        o.object_name,
                        o.subobject_name,
                        o.object_type
-                from dba_objects@sashprod1 o
+                from dba_objects@' || v_dblink || ' o
                 where object_id  in ( 
                         select current_obj# from (
                         select count(*) cnt, CURRENT_OBJ#
@@ -230,26 +224,28 @@ cursor c_sashobjs is select /*+DRIVING_SITE(o) */ l_dbid,
                         order by cnt desc )
                      where rownum < 100)
                   and object_id not in (select object_id from 
-                       sash_objs where dbid = l_dbid
-                       ) ;
-
-begin
-open c_sashobjs;
+                       sash_objs where dbid = :2
+                       )';
+open c_sashobjs for sql_stat using l_dbid, l_dbid;
 fetch c_sashobjs bulk collect into sash_objsrec;
 forall i in 1 .. sash_objsrec.count 
          insert into sash_objs values sash_objsrec(i);          
 close c_sashobjs;
 end get_objs;
 
-PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number) is
+PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number,  v_dblink varchar2) is
 type sash_sqlrec_type is table of sash_sqlplans%rowtype;
-sash_sqlrec  sash_sqlrec_type := sash_sqlrec_type();
-cursor c is
-                select /*+DRIVING_SITE(sql) */
+sash_sqlrec  sash_sqlrec_type := sash_sqlrec_type(); 
+type ctype is ref cursor;
+c ctype;
+sql_stat varchar2(4000);
+
+begin
+sql_stat:='select /*+DRIVING_SITE(sql) */
                       sql.sql_id, 
 					  sql.inst_id,
 					  sql.plan_hash_value,
-                       'REMARKS' remarksdesc ,
+                       ''REMARKS'' remarksdesc ,
                        sql.OPERATION,
                        sql.OPTIONS,
                        sql.OBJECT_NODE,
@@ -277,29 +273,33 @@ cursor c is
                        sql.TEMP_SPACE,
                        sql.ACCESS_PREDICATES,
                        sql.FILTER_PREDICATES,
-					   l_dbid 
-                from gv$sql_plan@sashprod1 sql, sash_hour_sqlid sqlids
+					   :1
+                from v$sql_plan@' || v_dblink || ' sql, sash_hour_sqlid sqlids
                 where sql.sql_id= sqlids.sql_id and sql.plan_hash_value = sqlids.sql_plan_hash_value
 				and not exists (select 1 from sash_sqlplans sqlplans where sqlplans.plan_hash_value = sqlids.sql_plan_hash_value 
-										 and sqlplans.sql_id = sqlids.sql_id );
-begin
-open c;
+										 and sqlplans.sql_id = sqlids.sql_id )';
+open c for sql_stat using l_dbid;
 fetch c bulk collect into sash_sqlrec;
 forall i in 1 .. sash_sqlrec.count 
          insert into sash_sqlplans values sash_sqlrec(i);          
 close c;		   
 end get_sqlplans;
 
-PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number) is
+PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number) is
 type sash_sqlstats_type is table of sash_sqlstats%rowtype;
 sash_sqlstats_rec sash_sqlstats_type;
-cursor c is select /*+DRIVING_SITE(sql) */  
-					   l_dbid,
-                       l_hist_samp_id,
+type ctype is ref cursor;
+c ctype;
+sql_stat varchar2(4000);
+
+begin
+	sql_stat:='select /*+DRIVING_SITE(sql) */  
+					   :1,
+                       :2,
+					   :3,
                        sql.address,
                        sql.sql_id,
 					   sql.plan_hash_value,
-					   sql.inst_id,
                        sql.child_number,
                        sql.executions,
                        sql.elapsed_time,
@@ -309,10 +309,9 @@ cursor c is select /*+DRIVING_SITE(sql) */
 					   sql.fetches,
                        sql.rows_processed,
 					   1,1,1,1,1,1,1
-                from gv$sql@sashprod1 sql
-                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t  );
-	begin
-		open c;
+                from v$sql@' || v_dblink || ' sql
+                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t  )';
+		open c for sql_stat using l_dbid, l_hist_samp_id, v_inst_num;
 		fetch c bulk collect into sash_sqlstats_rec;
 		forall i in 1..sash_sqlstats_rec.count 
 			insert into sash_sqlstats values sash_sqlstats_rec(i);	
@@ -326,12 +325,12 @@ cursor c is select /*+DRIVING_SITE(sql) */
 end get_sqlstats;
 
 
-PROCEDURE get_sqlid(l_dbid number, v_sql_id varchar2) is
+PROCEDURE get_sqlid(l_dbid number, v_sql_id varchar2,  v_dblink varchar2 ) is
 begin
 		 insert into sash_hour_sqlid select sql_id, sql_plan_hash_value from sash where l_dbid = dbid and sql_id = v_sql_id;
 end get_sqlid;	   
 
-PROCEDURE get_sqlids(l_dbid number) is
+PROCEDURE get_sqlids(l_dbid number, v_dblink varchar2) is
           v_sqlid  number;
 		  v_sqllimit number:=0;
 		  v_lastall number;
@@ -365,16 +364,20 @@ PROCEDURE get_sqlids(l_dbid number) is
 end get_sqlids;
 
 
-PROCEDURE get_sqltxt(l_dbid number)  is
+PROCEDURE get_sqltxt(l_dbid number, v_dblink varchar2)  is
 type sash_sqltxt_type is table of sash_sqltxt%rowtype;
 sash_sqltxt_rec sash_sqltxt_type;
-cursor c_sqltxt is select /*+DRIVING_SITE(sqlt) */ distinct 1,null,sqlt.sql_id,0,sqlt.piece,sqlt.sql_text 
-		    from gv$sqltext@sashprod1 sqlt 
+type ctype is ref cursor;
+c_sqltxt ctype;
+sql_stat varchar2(4000);
+
+begin
+sql_stat:='select /*+DRIVING_SITE(sqlt) */ distinct 1,null,sqlt.sql_id,0,sqlt.piece,sqlt.sql_text 
+		    from v$sqltext@'|| v_dblink || ' sqlt 
 			where sqlt.sql_id in 
 			(select sql_id from sash_hour_sqlid t 
-			 where not exists (select 1 from sash_sqltxt psql where t.sql_id = psql.sql_id));
-begin
-open c_sqltxt;
+			 where not exists (select 1 from sash_sqltxt psql where t.sql_id = psql.sql_id))';
+open c_sqltxt for sql_stat;
 fetch c_sqltxt bulk collect into sash_sqltxt_rec;
 FOR i IN 1..sash_sqltxt_rec.count loop
 	sash_sqltxt_rec(i).dbid := l_dbid;
@@ -385,28 +388,7 @@ close c_sqltxt;
 end get_sqltxt;
  
  
-/*
-       PROCEDURE print(v_sleep number, loops number) is
-          sash_rec sash%rowtype;
-          cursor sash_cur
-             return sash%ROWTYPE is  
-               select a.*, sashseq.nextval sample_id from sashnow a;
-          begin
-            for i in 1..loops loop
-              open sash_cur; loop
-                fetch sash_cur into sash_rec;
-                exit when sash_cur%notfound;
-                dbms_output.put_line(sash_rec.sample_time||' '||
-                                     to_char(sash_rec.session_id)||' '||
-                                     sash_rec.session_state);
-              end loop;
-              dbms_lock.sleep(v_sleep);
-              close sash_cur;
-            end loop;
-       end print;
-*/
-
-PROCEDURE collect(v_sleep number, loops number, vdblink varchar2, vinstance number) is
+PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance number) is
           sash_rec sash%rowtype;
 		  TYPE SashcurTyp IS REF CURSOR;
 		  sash_cur   SashcurTyp;		  
@@ -415,8 +397,8 @@ PROCEDURE collect(v_sleep number, loops number, vdblink varchar2, vinstance numb
 		  sql_stat varchar2(4000);
           
           begin
-            l_dbid:=get_dbid;
-			sql_stat := 'select a.*, 1 sample_id, null machine,  null terminal, null inst_id from sys.sashnow@' || vdblink || ' a';
+            l_dbid:=get_dbid(v_dblink);
+			sql_stat := 'select a.*, 1 sample_id, null machine,  null terminal, null inst_id from sys.sashnow@' || v_dblink || ' a';
             for i in 1..loops loop
               select  sashseq.nextval into cur_sashseq from dual;
               open sash_cur FOR sql_stat; 
@@ -490,7 +472,7 @@ PROCEDURE collect(v_sleep number, loops number, vdblink varchar2, vinstance numb
             end loop;
        end collect;
 	   
-	   procedure collect_stats(v_sleep number, loops number, vdblink varchar2, vinstance number) is
+	   procedure collect_stats(v_sleep number, loops number, v_dblink varchar2, vinstance number) is
 		type sash_instance_stats_type is table of sash_instance_stats%rowtype;
 		session_rec sash_instance_stats_type;
 		--session_rec1 sash_instance_stats_type;
@@ -509,8 +491,8 @@ PROCEDURE collect(v_sleep number, loops number, vdblink varchar2, vinstance numb
 		end if;
 		*/	  
 		
-		l_dbid:=get_dbid;
-		sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from v$sysstat@'|| vdblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
+		l_dbid:=get_dbid(v_dblink);
+		sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from v$sysstat@'|| v_dblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
 		--open sash_cur FOR sql_stat; 
 		
 		for l in 1..loops loop
@@ -529,31 +511,31 @@ PROCEDURE collect(v_sleep number, loops number, vdblink varchar2, vinstance numb
 	   end collect_stats;
 	   
 	   
-	 PROCEDURE get_one(v_sql_id varchar2) is
+	 PROCEDURE get_one(v_sql_id varchar2, v_dblink varchar2, v_inst_num number) is
 		l_hist_samp_id	number;
 		l_dbid number;
 	   begin
 		  select hist_id_seq.currval into l_hist_samp_id from dual;
-		  l_dbid:=get_dbid;
-          get_sqlid(l_dbid,v_sql_id);
-		  get_sqltxt(l_dbid);
-          get_sqlstats(l_hist_samp_id, l_dbid);
-          get_sqlplans(l_hist_samp_id, l_dbid);
+		  l_dbid:=get_dbid(v_dblink);
+          get_sqlid(l_dbid,v_sql_id, v_dblink);
+		  get_sqltxt(l_dbid,v_dblink);
+          get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
+          get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
 		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
 		  commit;
        end get_one;	
 
-       PROCEDURE get_all is
+       PROCEDURE get_all(v_dblink varchar2, v_inst_num number) is
 		l_hist_samp_id	number;
 		l_dbid number;
 	   begin
 		  select hist_id_seq.nextval into l_hist_samp_id from dual;
-		  l_dbid:=get_dbid;
-          get_sqlids(l_dbid);
-		  get_sqltxt(l_dbid);
-          get_sqlstats(l_hist_samp_id, l_dbid);
-          get_sqlplans(l_hist_samp_id, l_dbid);
-          get_objs(l_dbid);
+		  l_dbid:=get_dbid(v_dblink);
+          get_sqlids(l_dbid,v_dblink);
+		  get_sqltxt(l_dbid,v_dblink);
+          get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
+          get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
+          get_objs(l_dbid, v_dblink);
 		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
 		  commit;
        end get_all;	   

@@ -325,10 +325,10 @@ create index sash_31i on sash31(sample_time,dbid) ;
          create table sash_sqlstats( 
               dbid number, 
               hist_sample_id number, 
+			  inst_id number,			  
               address raw(8), 
               sql_id varchar2(13),
 			  plan_hash_value number,
-			  inst_id number,
               child_number number,
               executions number, 
               elapsed_time number, 
