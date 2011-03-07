@@ -68,10 +68,11 @@ drop table sash_extents;
 drop table sash_configuration;
 drop table sash_hist_sample;
 drop table waitgroups;
-drop sequence hist_id_seq;
+
  
 Prompt Create sequence
 
+drop sequence hist_id_seq;
 create sequence hist_id_seq;				
 
 Prompt Create tables
@@ -177,295 +178,313 @@ create index sash_29i on sash29(sample_time,dbid) ;
 create index sash_30i on sash30(sample_time,dbid) ;
 create index sash_31i on sash31(sample_time,dbid) ;
 
-         create or replace view sash as select * from sash1;
+create or replace view sash as select * from sash1;
 
-         create table sash_log
-           (start_time   date default sysdate,
-            action       varchar2(100),
-            result       char(1),
-            message      varchar2(1000));
-			
-		create global temporary table sash_hour_sqlid (sql_id varchar2(13), SQL_PLAN_HASH_VALUE number) on commit preserve rows;			
-			
-		 create or replace public synonym sash_log for sash_log;
-			
-		 create table sash_stats
-			(
-			  dbid        number,
-			  statistic#  number,
-			  name        varchar2(4000),
-			  collect     number
-			);
+create table sash_log
+   (start_time   date default sysdate,
+    action       varchar2(100),
+    result       char(1),
+    message      varchar2(1000));
+	
+create global temporary table sash_hour_sqlid (sql_id varchar2(13), SQL_PLAN_HASH_VALUE number) on commit preserve rows;			
+	
+ create or replace public synonym sash_log for sash_log;
+	
+ create table sash_stats
+	(
+	  dbid        number,
+	  statistic#  number,
+	  name        varchar2(4000),
+	  collect     number
+	);
 
-		create table sash_instance_stats (
-			dbid number,
-			inst_id number,
-			sample_time date,
-			STATISTIC#  NUMBER,
-			VALUE NUMBER
-		);	
+create table sash_instance_stats (
+	dbid number,
+	inst_id number,
+	sample_time date,
+	STATISTIC#  NUMBER,
+	VALUE NUMBER
+);	
 
-        create index sash_instance_stats_id1 on sash_instance_stats(sample_time, STATISTIC#, dbid);		
-			
-		 create table sash_hist_sample(
-			hist_sample_id  number,
-			dbid			number,
-			hist_date		date
-		 );
-			
-         create table sash_sqlplans(
-              sql_id    	  varchar2(13),
-			  inst_id 		  number,
-			  plan_hash_value number,
-              remarks         varchar2(80),
-              operation       varchar2(30),
-              options         varchar2(255),
-              object_node     varchar2(128),
-              object_owner    varchar2(30),
-              object_name     varchar2(30),
-              object_instance numeric,
-              object_type     varchar2(30),
-              optimizer       varchar2(255),
-              search_columns  number,
-              id              numeric,
-              parent_id       numeric,
-			  depth		      numeric,
-              position        numeric,
-              cost            numeric,
-              cardinality     numeric,
-              bytes           numeric,
-              other_tag       varchar2(255),
-              partition_start varchar2(255),
-              partition_stop  varchar2(255),
-              partition_id    numeric,
-              other           varchar2(4000),
-              distribution    varchar2(30),
-              cpu_cost        numeric,
-              io_cost         numeric,
-              temp_space      numeric,
-              access_predicates varchar2(4000),
-              filter_predicates varchar2(4000),
-              dbid number);
-		 create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value);			  
-         create index sash_sqlplans_i  
-              on sash_sqlplans(dbid, sql_id);
-         create table sash_params(
-              dbid number, 
-              name varchar2(64),
-              value varchar2(512));
-         create unique index sash_params_i 
-              on sash_params( dbid , name );
-         create table sash_event_names( 
-              dbid number, 
-              event# number, 
-              wait_class varchar2(64), 
-              name varchar2(64));
-         create table sash_data_files( 
-              dbid number, 
-              file_name varchar2(513), 
-              file_id number,
-              tablespace_name varchar(30) 
-              );
-         create unique index sash_event_names_i 
-              on sash_event_names( dbid , event# );
-         create table sash_users
-            ( dbid number, 
-              username varchar2(30), 
-              user_id number);
-         create unique index sash_users_i 
-              on sash_users(dbid, user_id);
-         create table sash_latch
-            ( dbid  number,
-              latch# number,
-              name varchar2(64));
-         create table sash_sessids
-            ( dbid  number,
-              session_id number,
-              session_serial# number);
-         create table sash_sesstat
-            (   statid           number,
-				sdate            date,
-				dbid             number,
-				session_id       number,
-				session_serial#  number,
-				statistic#       number,
-				value            number);
-         create table sash_sqlids
-            ( dbid number,
-              address raw(8),
-              sql_id  varchar(13),
-			  inst_id number,
-              child_number number,
-              plan_hash_value number,
-              command_type number,
-              memory  number,
-              sql_text varchar(64),
-              last_found date,
-              first_found date,
-              found_count number );
-         create unique index sash_sqlids_i on sash_sqlids
-              (dbid,
-			   inst_id,
-               sql_id,
-			   plan_hash_value,
-               child_number);
-         create index sash_sqlids_i2 on sash_sqlids
-              (sql_id,plan_hash_value);			   
-         create table sash_sqltxt
-            ( dbid number,
-              address raw(8),
-              sql_id varchar2(13),
-              child_number number,
-              piece number,
-              sql_text varchar(64));
-         create unique index sash_sqltxt_i on sash_sqltxt
-              (dbid,
-               sql_id,
-               piece);
-         create table sash_sqlstats( 
-              dbid number, 
-              hist_sample_id number, 
-			  inst_id number,			  
-              address raw(8), 
-              sql_id varchar2(13),
-			  plan_hash_value number,
-              child_number number,
-              executions number, 
-              elapsed_time number, 
-              disk_reads number, 
-              buffer_gets number, 
-              cpu_time number, 
-              fetches number, 
-              rows_processed number,
-              executions_delta number, 
-              elapsed_time_delta number, 
-              disk_reads_delta number, 
-              buffer_gets_delta number, 
-              cpu_time_delta number, 
-              fetches_delta number, 
-              rows_processed_delta number
-			  ); 
-			  
-		create index sash_sqlstats_i1 on sash_sqlstats  (hist_sample_id);
-			  
-         create table sash_objs(
-              dbid number,  
-              object_id number, 
-              owner varchar2(30), 
-              object_name varchar2(128), 
-              subobject_name varchar2(30), 
-              object_type varchar2(18));
-         create unique index sash_objs_i on sash_objs
-              (dbid, object_id);
+create index sash_instance_stats_id1 on sash_instance_stats(sample_time, STATISTIC#, dbid);		
+	
+ create table sash_hist_sample(
+	hist_sample_id  number,
+	dbid			number,
+	hist_date		date
+ );
+	
+ create table sash_sqlplans(
+      sql_id    	  varchar2(13),
+	  plan_hash_value number,
+      remarks         varchar2(80),
+      operation       varchar2(30),
+      options         varchar2(255),
+      object_node     varchar2(128),
+      object_owner    varchar2(30),
+      object_name     varchar2(30),
+      object_instance numeric,
+      object_type     varchar2(30),
+      optimizer       varchar2(255),
+      search_columns  number,
+      id              numeric,
+      parent_id       numeric,
+	  depth		      numeric,
+      position        numeric,
+      cost            numeric,
+      cardinality     numeric,
+      bytes           numeric,
+      other_tag       varchar2(255),
+      partition_start varchar2(255),
+      partition_stop  varchar2(255),
+      partition_id    numeric,
+      other           varchar2(4000),
+      distribution    varchar2(30),
+      cpu_cost        numeric,
+      io_cost         numeric,
+      temp_space      numeric,
+      access_predicates varchar2(4000),
+      filter_predicates varchar2(4000),
+      dbid number);
+	  
+ create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value, dbid);			  
+ 
+create table sash_params(
+      dbid number, 
+      name varchar2(64),
+      value varchar2(512));
 
-         create table sash_target (dbid number);
-		 
-         create table sash_targets (
-            dbid number,
-            host varchar2(30),
-			port number,
-			dbname varchar2(30),
-			sid varchar2(8),
-			inst_num number,
-            db_link varchar(4000),
-			version varchar2(20),
-            cpu_count number						
-         );
-		 
-		 create table sash_extents (
-            dbid number,
-			segment_name varchar2 (100),
-			partition_name varchar2 (30),
-			segment_type varchar2 (20),
-			tablespace_name	varchar2 (30),
-			extent_id	number,	
-			file_id		number,
-			block_id	number,
-			bytes		number,	
-			blocks		number,
-			relative_fno number
-         );
-		 
-		 create index sash_extents_blc_idx on sash_extents (file_id, block_id, block_id+blocks);
-		 
-         create unique index sash_targets_i on sash_targets ( host,sid,home);
+create unique index sash_params_i on sash_params( dbid , name );
 
-		create or replace force view sash_all
-		as
-		   select * from sash1
-		   union all
-		   select * from sash2
-		   union all
-		   select * from sash3
-		   union all
-		   select * from sash4
-		   union all
-		   select * from sash5
-		   union all
-		   select * from sash6
-		   union all
-		   select *from sash7
-		   union all
-		   select * from sash8
-		   union all
-		   select * from sash9
-		   union all
-		   select * from sash10
-		   union all
-		   select * from sash11
-		   union all
-		   select * from sash12
-		   union all
-		   select * from sash13
-		   union all
-		   select * from sash14
-		   union all
-		   select * from sash15
-		   union all
-		   select * from sash16
-		   union all
-		   select * from sash17
-		   union all
-		   select * from sash18
-		   union all
-		   select * from sash19
-		   union all
-		   select * from sash20
-		   union all
-		   select * from sash21
-		   union all
-		   select * from sash22
-		   union all
-		   select * from sash23
-		   union all
-		   select * from sash24
-		   union all
-		   select * from sash25
-		   union all
-		   select * from sash26
-		   union all
-		   select * from sash27
-		   union all
-		   select * from sash28
-		   union all
-		   select * from sash29
-		   union all
-		   select * from sash30
-		   union all
-		   select * from sash31;
+create table sash_event_names( 
+      dbid number, 
+      event# number, 
+      wait_class varchar2(64), 
+      name varchar2(64));
 
+create unique index sash_event_names_i on sash_event_names( event# , dbid );
+	  
+create table sash_data_files( 
+      dbid number, 
+      file_name varchar2(513), 
+      file_id number,
+      tablespace_name varchar(30) 
+      );
 
+create table sash_users
+    ( dbid number, 
+      username varchar2(30), 
+      user_id number);
 
+create unique index sash_users_i on sash_users(dbid, user_id);
 
-     create table waitgroups (
+create table sash_latch
+    ( dbid  number,
+      latch# number,
+      name varchar2(64));
+
+create table sash_sesstat
+    (   statid           number,
+		sdate            date,
+		dbid             number,
+		session_id       number,
+		session_serial#  number,
+		statistic#       number,
+		value            number);
+
+		
+create table sash_sqlids
+    ( dbid number,
+      address raw(8),
+      sql_id  varchar(13),
+	  inst_id number,
+      child_number number,
+      plan_hash_value number,
+      command_type number,
+      memory  number,
+      sql_text varchar(64),
+      last_found date,
+      first_found date,
+      found_count number );
+	  
+create unique index sash_sqlids_i on sash_sqlids
+      (
+       sql_id,
+	   plan_hash_value,
+       child_number,
+	   dbid,
+	   inst_id);
+	   
+create table sash_sqltxt
+    ( dbid number,
+      address raw(8),
+      sql_id varchar2(13),
+      child_number number,
+      piece number,
+      sql_text varchar(64));
+
+create unique index sash_sqltxt_i on sash_sqltxt
+      (dbid,
+       sql_id,
+       piece);
+
+create table sash_sqlstats( 
+      dbid number, 
+      hist_sample_id number, 
+	  inst_id number,			  
+      address raw(8), 
+      sql_id varchar2(13),
+	  plan_hash_value number,
+      child_number number,
+      executions number, 
+      elapsed_time number, 
+      disk_reads number, 
+      buffer_gets number, 
+      cpu_time number, 
+      fetches number, 
+      rows_processed number,
+      executions_delta number, 
+      elapsed_time_delta number, 
+      disk_reads_delta number, 
+      buffer_gets_delta number, 
+      cpu_time_delta number, 
+      fetches_delta number, 
+      rows_processed_delta number
+	  ); 
+	  
+create index sash_sqlstats_i1 on sash_sqlstats  (hist_sample_id);
+
+create index sash_sqlstats_i2 on sash_sqlstats  (sql_id, plan_hash_value);
+	  
+create table sash_objs(
+      dbid number,  
+      object_id number, 
+      owner varchar2(30), 
+      object_name varchar2(128), 
+      subobject_name varchar2(30), 
+      object_type varchar2(18));
+	  
+create unique index sash_objs_i on sash_objs
+      (dbid, object_id);
+
+create table sash_target (dbid number);
+ 
+create table sash_targets (
+    dbid number,
+    host varchar2(30),
+	port number,
+	dbname varchar2(30),
+	sid varchar2(8),
+	inst_num number,
+    db_link varchar(4000),
+	version varchar2(20),
+    cpu_count number						
+ );
+
+create unique index sash_targets_i on sash_targets ( host,sid );
+ 
+create table sash_extents (
+    dbid number,
+	segment_name varchar2 (100),
+	partition_name varchar2 (30),
+	segment_type varchar2 (20),
+	tablespace_name	varchar2 (30),
+	extent_id	number,	
+	file_id		number,
+	block_id	number,
+	bytes		number,	
+	blocks		number,
+	relative_fno number
+ );
+ 
+create index sash_extents_blc_idx on sash_extents (file_id, block_id, block_id+blocks);
+
+create table waitgroups (
            NAME         VARCHAR2(64),
            WAIT_CLASS   VARCHAR2(64)
-     );
-     create index waitgroups_i on waitgroups(name);
+);
 
-     create or replace view v$active_session_history as
+create index waitgroups_i on waitgroups(name);
+
+create table sash_configuration (
+      param       	varchar2(30),
+      value		    varchar2(100)
+);
+   
+create unique index sash_configuration_unq on sash_configuration(param);
+   
+insert into sash_configuration values ('SASH RETENTION','w');
+commit;
+
+ 
+create or replace force view sash_all
+as
+   select * from sash1
+   union all
+   select * from sash2
+   union all
+   select * from sash3
+   union all
+   select * from sash4
+   union all
+   select * from sash5
+   union all
+   select * from sash6
+   union all
+   select *from sash7
+   union all
+   select * from sash8
+   union all
+   select * from sash9
+   union all
+   select * from sash10
+   union all
+   select * from sash11
+   union all
+   select * from sash12
+   union all
+   select * from sash13
+   union all
+   select * from sash14
+   union all
+   select * from sash15
+   union all
+   select * from sash16
+   union all
+   select * from sash17
+   union all
+   select * from sash18
+   union all
+   select * from sash19
+   union all
+   select * from sash20
+   union all
+   select * from sash21
+   union all
+   select * from sash22
+   union all
+   select * from sash23
+   union all
+   select * from sash24
+   union all
+   select * from sash25
+   union all
+   select * from sash26
+   union all
+   select * from sash27
+   union all
+   select * from sash28
+   union all
+   select * from sash29
+   union all
+   select * from sash30
+   union all
+   select * from sash31;
+
+create or replace view v$active_session_history as
        select
          ash.dbid           ,
+		 ash.inst_id		,
          ash.sample_time     ,
          ash.session_id      ,
          ash.session_state   ,
@@ -476,7 +495,7 @@ create index sash_31i on sash31(sample_time,dbid) ;
          ash.sql_plan_hash_value  ,
          ash.sql_opcode      ,
          decode(bitand(ash.session_type,19),17,'BACKGROUND',1,'FOREGROUND',2,'RECURSIVE','?') session_type, --9i
-         ash.event#          ,
+         decode(session_state,'WAITING',ash.event#,null) event#,
          ash.seq#            ,
          ash.p1              ,
          ash.p2              ,
@@ -490,7 +509,7 @@ create index sash_31i on sash31(sample_time,dbid) ;
          ash.action          ,
          ash.FIXED_TABLE_SEQUENCE ,
          ash.sample_id       ,
-         e.name event         ,
+         decode(session_state,'WAITING',e.name,null) event,
          nvl(e.wait_class,'Other') wait_class
     from
          sash_all ash,
@@ -500,12 +519,12 @@ create index sash_31i on sash31(sample_time,dbid) ;
          e.dbid = ( select dbid from sash_target) and
          ash.dbid = ( select dbid from sash_target) ;
 
-   create or replace view dba_hist_active_sess_history 
+create or replace view dba_hist_active_sess_history 
      as 
      select * from v$active_session_history 
      where rownum < 1;
 
-   create or replace view v$sqltext_with_newlines as 
+create or replace view v$sqltext_with_newlines as 
      select 
             DBID         ,
             ADDRESS      ,
@@ -516,35 +535,72 @@ create index sash_31i on sash31(sample_time,dbid) ;
             sash_sqltxt
      where dbid = ( select dbid from sash_target);
 
-   create or replace view v$instance as select 
+create or replace view v$instance as select 
         version  version,
         host     host_name,
         sid      instance_name
      from sash_targets 
      where dbid = ( select dbid from sash_target);
 
-   create or replace view v$parameter as select * from sash_params
+create or replace view v$parameter as select * from sash_params
           where dbid = ( select dbid from sash_target);
 
-   create or replace view dba_users as select * from sash_users
+create or replace view dba_users as select * from sash_users
           where dbid = ( select dbid from sash_target);
 
-    create or replace view dba_data_files as select * from sash_data_files
+create or replace view dba_data_files as select * from sash_data_files
           where dbid = ( select dbid from sash_target);
 
-   create or replace view all_objects as select * from sash_objs
+create or replace view all_objects as select * from sash_objs
           where dbid = ( select dbid from sash_target);
 	  
-   create table sash_configuration (
-      param       	varchar2(30),
-      value		    varchar2(100)
-   );
-   
-   create unique index sash_configuration_unq on sash_configuration(param);
-   
-   insert into sash_configuration values ('SASH RETENTION','w');
-   commit;
-   
+CREATE OR REPLACE FORCE VIEW SASH_PLAN_TABLE (STATEMENT_ID, PLAN_ID, TIMESTAMP, REMARKS, OPERATION, OPTIONS, OBJECT_NODE, 
+OBJECT_OWNER, OBJECT_NAME, OBJECT_ALIAS, OBJECT_INSTANCE, OBJECT_TYPE, OPTIMIZER,
+ SEARCH_COLUMNS, ID, PARENT_ID, DEPTH, POSITION, COST, CARDINALITY, BYTES, OTHER_TAG, PARTITION_START, PARTITION_STOP, 
+ PARTITION_ID, OTHER, OTHER_XML, DISTRIBUTION, CPU_COST, IO_COST, TEMP_SPACE, 
+ ACCESS_PREDICATES, FILTER_PREDICATES, PROJECTION, TIME, QBLOCK_NAME) AS
+  select
+ SQL_ID             ,
+ PLAN_HASH_VALUE    ,
+ sysdate,
+ null ,
+ OPERATION,
+ OPTIONS   ,
+ OBJECT_NODE,
+ OBJECT_OWNER,
+ OBJECT_NAME  ,
+ 'ALIAS',
+ OBJECT_INSTANCE    ,
+ OBJECT_TYPE        ,
+ OPTIMIZER          ,
+ SEARCH_COLUMNS     ,
+ ID                 ,
+ PARENT_ID          ,
+ depth,
+ POSITION           ,
+ COST               ,
+ CARDINALITY        ,
+ BYTES              ,
+ OTHER_TAG          ,
+ PARTITION_START    ,
+ PARTITION_STOP     ,
+ PARTITION_ID       ,
+ OTHER              ,
+ null           ,
+ DISTRIBUTION       ,
+ CPU_COST           ,
+ IO_COST            ,
+ TEMP_SPACE         ,
+ ACCESS_PREDICATES  ,
+ FILTER_PREDICATES  ,
+ null,
+1,
+ null
+ from sash_sqlplans;
+
+	  
+
+	  
 /*
  if you run this as SYS you'll have to recreate them
   ?/rdbms/admim/catalog.sql

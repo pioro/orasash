@@ -66,23 +66,7 @@ procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
              RAISE_APPLICATION_ERROR(-20010,'SASH purge errored ');
   end purge;
 
-  /*
-  procedure configure_db is 
-  begin
-   dbms_output.put_line( 'set_dbid');
-   sash_pkg.set_dbid;
-   dbms_output.put_line( 'get_event');
-   sash_pkg.get_event_names;
-   dbms_output.put_line( '3');
-   sash_pkg.get_users;
-   dbms_output.put_line( '4');
-   sash_pkg.get_params;
-   dbms_output.put_line( '5');
-   sash_pkg.get_data_files;
-   update sash_event_names sen set sen.wait_class = ( select wg.wait_class from gv$event_name@sashprod1 wg where wg.name=sen.name);
-   commit; 
-  end configure_db;
-  */
+
   
   
   procedure set_retention(rtype varchar2) is 
@@ -91,9 +75,7 @@ procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
 	  commit;
       exception
           when others then
-             insert into sash_log (action, message,result) values 
-                  ('SET_RETENTION', 'update value ' || rtype ,'E');
-             commit;
+             log_message('SET_RETENTION', 'update value ' || rtype ,'E');
              RAISE_APPLICATION_ERROR(-20020,'SASH set retention errored ');
   end;
   
@@ -133,15 +115,12 @@ procedure create_repository_jobs is
         commit;
        end;
        else 
-         insert into sash_log (action, message,result) values ('create_repository_jobs','Repository job exist - remove first', 'I');
-         commit;
+         log_message('create_repository_jobs','Repository job exist - remove first', 'I');
          RAISE_APPLICATION_ERROR(-20130,'SASH create_repository_jobs - Repository job exist - remove first');
        end if;
     exception
           when others then
-             insert into sash_log (action, message,result) values
-                  ('create_repository_jobs', '' ,'E');
-             commit;
+			 log_message('create_repository_jobs', '' ,'E');
              RAISE_APPLICATION_ERROR(-20030,'SASH  create_repository_jobs errored ');
   end;
 
@@ -153,14 +132,12 @@ procedure create_repository_jobs is
         dbms_output.put_line( 'dbms_job.broken ' || i.job );
         dbms_job.broken( i.job , true);
         dbms_job.remove( i.job);
-        insert into sash_log (action, message,result) values ('stop_and_remove_repository_jobs','stopping job ' || i.job, 'I');
+        log_message('stop_and_remove_repository_jobs','stopping job ' || i.job, 'I');
      end loop;
      commit;
     exception
           when others then
-             insert into sash_log (action, message,result) values
-                  ('stop_and_remove_repository_jobs', '' ,'E');
-             commit;
+             log_message('stop_and_remove_repository_jobs', '' ,'E');
              RAISE_APPLICATION_ERROR(-20060,'SASH  stop_and_remove_repository_jobs errored ');
   end;
   
@@ -175,9 +152,7 @@ procedure create_repository_jobs is
 	 commit;
      exception
           when others then
-             insert into sash_log (action, message,result) values 
-                  ('remove_collection_jobs', '' ,'E');
-             commit;
+			 log_message('remove_collection_jobs', '' ,'E');
              RAISE_APPLICATION_ERROR(-20040,'SASH  remove_collection_jobs errored ');
    end;  
 
@@ -185,7 +160,16 @@ procedure create_repository_jobs is
   vjob number; 
   instnum number;
   vwhat varchar2(4000);
+  vinterval varchar2(100);
+  v_lastall number;
+  
   begin
+	begin
+		select to_number(value) into v_lastall from sash_configuration where param='STATFREQ';
+		dbms_output.put_line('v_lastall ' || v_lastall);
+		exception when NO_DATA_FOUND then 
+		    v_lastall:=1;
+	end;
 
 	for i in (select db_link, inst_num from sash_targets) loop
 	vwhat:='begin sash_pkg.collect(1,3600,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
@@ -205,24 +189,23 @@ procedure create_repository_jobs is
                         );						
 
 	vwhat:='begin sash_pkg.get_all('''|| i.db_link || ''',' || i.inst_num || '); end;';
+	vinterval:='trunc(sysdate+(' || v_lastall || '/24),''HH'')';
 	dbms_output.put_line( 'dbms_job.submit ' || vwhat );						
+	dbms_output.put_line( 'dbms_job.submit ' || vinterval );						
     dbms_job.submit(job        => vjob
                         ,what      => vwhat
                         ,next_date => sysdate
-                        ,interval  => 'trunc(sysdate+(1/(24)),''HH'')'
+                        ,interval  => vinterval
                         );
 						
 	end loop;
     commit;
-	/*
+
     exception
           when others then
-             insert into sash_log (action, message,result) values 
-                  ('create_collection_jobs', '' ,'E');
-             commit;
+             log_message('create_collection_jobs', '' ,'E');
              RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ');	
-    */
-   end;     
+  end;     
    
    
   procedure setup_jobs is
@@ -241,15 +224,13 @@ procedure create_repository_jobs is
                 ) loop
         dbms_output.put_line( 'dbms_job.broken ' || i.job );
         dbms_job.broken( i.job , true);
-		insert into sash_log (action, message,result) values ('stop_collecting_jobs','stopping job ' || i.job, 'I');		
+		log_message('stop_collecting_jobs','stopping job ' || i.job, 'I');		
      end loop;
 	 commit;
 	 sys.kill_sash_session;
     exception
           when others then
-             insert into sash_log (action, message,result) values 
-                  ('stop_collecting_jobs', '' ,'E');
-             commit;
+             log_message('stop_collecting_jobs', '' ,'E');
              RAISE_APPLICATION_ERROR(-20060,'SASH  stop_collecting_jobs errored ');		 
   end;
   
@@ -258,16 +239,13 @@ procedure create_repository_jobs is
       for i in  ( select job from user_jobs
                 where what like '%sash_pkg%'
                 ) loop
-        --dbms_output.put_line( 'dbms_job.broken ' || i.job );
         dbms_job.broken( i.job , false);
-		insert into sash_log (action, message,result) values ('start_collecting_jobs','starting job ' || i.job, 'I');
+		log_message('start_collecting_jobs','starting job ' || i.job, 'I');
      end loop;
 	 commit;
      exception
           when others then
-             insert into sash_log (action, message,result) values 
-                  ('start_collecting_jobs', '' ,'E');
-             commit;
+			log_message('start_collecting_jobs', '' ,'E');
              RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs errored ');		 
 	 end;
 
