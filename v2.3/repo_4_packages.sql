@@ -40,10 +40,14 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
 		  PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number,v_dblink varchar2) ;
 		  PROCEDURE get_extents(v_dblink varchar2);
           PROCEDURE get_event_names(v_dblink varchar2)  ;
-		  PROCEDURE collect_stats(v_sleep number, loops number, v_dblink varchar2, vinstance number);
+		  PROCEDURE collect_other(v_sleep number, loops number, v_dblink varchar2, vinstance number);
           PROCEDURE collect (v_sleep number, loops number,v_dblink varchar2, vinstance number) ;
           FUNCTION get_dbid (v_dblink varchar2) return number ;
+          FUNCTION get_version (v_dblink varchar2) return varchar2 ;
           PROCEDURE set_dbid ( v_dblink varchar2)  ;
+          procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
+          PROCEDURE get_metrics(v_dblink varchar2) ;
+          PROCEDURE collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
           END sash_pkg;
 /
 show errors
@@ -64,6 +68,7 @@ procedure configure_db(v_dblink varchar2) is
    sash_pkg.get_params(v_dblink);
    dbms_output.put_line( 'get_data_files');
    sash_pkg.get_data_files(v_dblink);
+   sash_pkg.get_metrics(v_dblink);
    commit; 
 end configure_db;
  
@@ -74,6 +79,13 @@ FUNCTION get_dbid(v_dblink varchar2) return number is
       execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
       return l_dbid;
 end get_dbid;
+
+FUNCTION get_version(v_dblink varchar2) return varchar2 is
+    l_ver varchar2(8);
+    begin
+      execute immediate 'select version from sash_targets where db_link = '''||v_dblink||'''' into l_ver;
+      return l_ver;
+end get_version;
 
 PROCEDURE get_users(v_dblink varchar2) is
     l_dbid number;
@@ -113,6 +125,39 @@ PROCEDURE get_params(v_dblink varchar2) is
 		when DUP_VAL_ON_INDEX then
 			sash_repo.log_message('GET_PARAMS', 'Already configured ?','W');				  
 end get_params;
+
+PROCEDURE get_metrics(v_dblink varchar2) is
+   l_dbid number;
+   begin
+	 l_dbid:=get_dbid(v_dblink);
+     execute immediate 'insert into sash_sysmetric_names select distinct ' || l_dbid || ',METRIC_ID,METRIC_NAME,METRIC_UNIT from v$sysmetric_history@'||v_dblink || 
+     ' where metric_name in (
+        ''User Transaction Per Sec'',
+        ''Physical Reads Per Sec'',
+        ''Physical Reads Per Txn'',
+        ''Physical Writes Per Sec'',
+        ''Redo Generated Per Sec'',
+        ''Redo Generated Per Txn'',
+        ''Logons Per Sec'',
+        ''User Calls Per Sec'',
+        ''Logical Reads Per Txn'',
+        ''Total Parse Count Per Txn'',
+        ''Network Traffic Volume Per Sec'',
+        ''Enqueue Requests Per Txn'',
+        ''DB Block Changes Per Txn'',
+        ''Current Open Cursors Count'',
+        ''SQL Service Response Time'',
+        ''Response Time Per Txn'',
+        ''Executions Per Sec'',
+        ''Average Synchronous Single-Block Read Latency'',
+        ''I/O Megabytes per Second'',
+        ''I/O Requests per Second'',
+        ''Average Active Sessions''
+     )';
+	exception
+		when DUP_VAL_ON_INDEX then
+			sash_repo.log_message('GET_METRICS', 'Already configured ?','W');				  
+end get_metrics;
 
 PROCEDURE set_dbid(v_dblink varchar2) is
    l_dbid number;
@@ -277,35 +322,39 @@ c ctype;
 sql_stat varchar2(4000);
 
 begin
-	sql_stat:='select /*+DRIVING_SITE(sql) */  
-					   :1,
-                       :2,
-					   :3,
-                       sql.address,
-                       sql.sql_id,
-					   sql.plan_hash_value,
-                       sql.child_number,
-                       sql.executions,
-                       sql.elapsed_time,
-					   sql.disk_reads,
-					   sql.buffer_gets,
-					   sql.cpu_time,
-					   sql.fetches,
-                       sql.rows_processed,
-					   1,1,1,1,1,1,1
-                from v$sql@' || v_dblink || ' sql
-                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t  )';
-		open c for sql_stat using l_dbid, l_hist_samp_id, v_inst_num;
+	sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
+               sql_id,  plan_hash_value, parse_calls, disk_reads,
+               direct_writes, buffer_gets, rows_processed, serializable_aborts,
+               fetches, executions, end_of_fetch_count, loads, version_count,
+               invalidations,  px_servers_executions,  cpu_time, elapsed_time,
+               avg_hard_parse_time, application_wait_time, concurrency_wait_time,
+               cluster_wait_time, user_io_wait_time, plsql_exec_time, java_exec_time,
+               sorts, sharable_mem, total_sharable_mem, typecheck_mem, io_interconnect_bytes,
+               physical_read_requests,  physical_read_bytes, physical_write_requests,
+               physical_write_bytes, exact_matching_signature, force_matching_signature ,
+               0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+               from v$sqlstats@' || v_dblink || ' sql
+                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
+		open c for sql_stat using l_hist_samp_id, l_dbid, v_inst_num;
 		fetch c bulk collect into sash_sqlstats_rec;
 		forall i in 1..sash_sqlstats_rec.count 
 			insert into sash_sqlstats values sash_sqlstats_rec(i);	
 			
-		update sash_sqlstats s set (s.executions_delta, s.ELAPSED_TIME_DELTA,s.DISK_READS_DELTA,s.buffer_gets_delta,s.cpu_time_delta,s.fetches_delta,s.rows_processed_delta) = 
-		(select s.executions - old.executions, s.ELAPSED_TIME - old.ELAPSED_TIME, s.DISK_READS - old.DISK_READS, s.buffer_gets - old.buffer_gets, s.cpu_time - old.cpu_time,
-		 s.fetches - old.fetches, s.rows_processed - old.rows_processed
-		from sash_sqlstats old where 
-		old.HIST_SAMPLE_ID = s.HIST_SAMPLE_ID - 1 and old.sql_id = s.sql_id and old.child_number = s.child_number)
-		where HIST_SAMPLE_ID = l_hist_samp_id;	
+ 		update sash_sqlstats s set 
+        (fetches_delta, end_of_fetch_count_delta, sorts_delta, executions_delta, px_servers_execs_delta, 
+         loads_delta, invalidations_delta, parse_calls_delta, disk_reads_delta, buffer_gets_delta, rows_processed_delta,
+         cpu_time_delta, elapsed_time_delta, iowait_delta, clwait_delta, apwait_delta, ccwait_delta, direct_writes_delta,
+         plsexec_time_delta, javexec_time_delta, io_interconnect_bytes_delta, physical_read_requests_delta, physical_read_bytes_delta,
+         physical_write_requests_delta, physical_write_bytes_delta) = 
+		(select 
+         s.fetches - old.fetches, s.end_of_fetch_count - old.end_of_fetch_count, s.sorts - old.sorts, s.executions - old.executions, s.px_servers_executions - old.px_servers_executions, 
+         s.loads - old.loads, s.invalidations - old.invalidations, s.parse_calls - old.parse_calls, s.disk_reads - old.disk_reads, s.buffer_gets - old.buffer_gets, s.rows_processed - old.rows_processed,
+         s.cpu_time - old.cpu_time, s.elapsed_time - old.elapsed_time, s.user_io_wait_time - old.user_io_wait_time, s.cluster_wait_time - old.cluster_wait_time, s.application_wait_time - old.application_wait_time, s.concurrency_wait_time - old.concurrency_wait_time, s.direct_writes - old.direct_writes,
+         s.plsql_exec_time - old.plsql_exec_time, s.java_exec_time - old.java_exec_time, s.io_interconnect_bytes - old.io_interconnect_bytes, s.physical_read_requests - old.physical_read_requests, s.physical_read_bytes - old.physical_read_bytes,
+         s.physical_write_requests - old.physical_write_requests, s.physical_write_bytes - old.physical_write_bytes
+         from sash_sqlstats old where 
+		 old.snap_id = s.snap_id - 1 and old.sql_id = s.sql_id and old.plan_hash_value = s.plan_hash_value)
+		 where snap_id = l_hist_samp_id;
 		
 end get_sqlstats;
 
@@ -334,14 +383,6 @@ PROCEDURE get_sqlids(l_dbid number) is
 			exception when NO_DATA_FOUND then 
 		      v_lastall:=1;
 		 end;
-		 -- check when was last get_all 
-		 --select (sysdate-max(HIST_DATE))*24 into v_lastall from sash_hist_sample;
-		 -- if last get_all was more than 1 h ago - limit data to 1h
-		 --if (v_lastall>1) then
-		--	v_lastall:=1;
-		 --end if;
-		 dbms_output.put_line('start');
-		 -- added distinct as there can be more than one child
 		 insert into sash_hour_sqlid select distinct sql_id, sql_plan_hash_value from (
                           select count(*) cnt, sql_id, sql_plan_hash_value
                           from sash 
@@ -352,31 +393,20 @@ PROCEDURE get_sqlids(l_dbid number) is
                           group by sql_id, sql_plan_hash_value
                           order by cnt desc )
                         where rownum < v_sqllimit;
-		dbms_output.put_line('next');
 end get_sqlids;
 
 
 PROCEDURE get_sqltxt(l_dbid number, v_dblink varchar2)  is
-type sash_sqltxt_type is table of sash_sqltxt%rowtype;
-sash_sqltxt_rec sash_sqltxt_type;
-type ctype is ref cursor;
-c_sqltxt ctype;
 sql_stat varchar2(4000);
 
 begin
-sql_stat:='select /*+DRIVING_SITE(sqlt) */ distinct 1,null,sqlt.sql_id,0,sqlt.piece,sqlt.sql_text 
-		    from v$sqltext@'|| v_dblink || ' sqlt 
-			where sqlt.sql_id in 
-			(select sql_id from sash_hour_sqlid t 
-			 where not exists (select 1 from sash_sqltxt psql where t.sql_id = psql.sql_id))';
-open c_sqltxt for sql_stat;
-fetch c_sqltxt bulk collect into sash_sqltxt_rec;
-FOR i IN 1..sash_sqltxt_rec.count loop
-	sash_sqltxt_rec(i).dbid := l_dbid;
-end loop;
-forall i in 1..sash_sqltxt_rec.count 
-	insert into sash_sqltxt values sash_sqltxt_rec(i);
-close c_sqltxt;
+    -- we can't use PL/SQL to copy CLOB over DB link - this is a workaround and direct copy from target to repository table
+    sql_stat:='insert into sash_sqltxt select /*+DRIVING_SITE(sqlt) */  :1, SQL_ID, to_char(SQL_TEXT), 1
+                from v$sqlstats@'|| v_dblink || ' sqlt 
+                where sqlt.sql_id in 
+                (select sql_id from sash_hour_sqlid t 
+                 where not exists (select 1 from sash_sqltxt psql where t.sql_id = psql.sql_id and psql.dbid = :2))';
+    execute immediate sql_stat using l_dbid, l_dbid;
 end get_sqltxt;
  
  
@@ -494,44 +524,107 @@ PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance num
             end loop;
        end collect;
 	   
-	   procedure collect_stats(v_sleep number, loops number, v_dblink varchar2, vinstance number) is
-		type sash_instance_stats_type is table of sash_instance_stats%rowtype;
-		session_rec sash_instance_stats_type;
-		--session_rec1 sash_instance_stats_type;
-		--session_rec_delta sash_instance_stats_type := sash_instance_stats_type();
-		sql_stat varchar2(4000);
-		--sql_stat1 varchar2(4000);
-     	TYPE SashcurTyp IS REF CURSOR;
-		sash_cur   SashcurTyp;		
-	    l_dbid number;		
-		--sash_cur1   SashcurTyp;
+procedure collect_io_event(v_dblink varchar2, vinstance number) is
+type sash_io_system_event_type is table of sash_io_system_event%rowtype;
+io_event_rec sash_io_system_event_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;		
+l_dbid number;		
 
-		begin
-		/*
-		if session_rec_delta.count < 3 then 
-			session_rec_delta.extend(3);
-		end if;
-		*/	  
-		
-		l_dbid:=get_dbid(v_dblink);
-		sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from v$sysstat@'|| v_dblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
-		--open sash_cur FOR sql_stat; 
-		
-		for l in 1..loops loop
-			open sash_cur FOR sql_stat; 
-			fetch sash_cur bulk collect into session_rec;
+begin
+    l_dbid:=get_dbid(v_dblink);
+    sql_stat := 'select 1,sysdate,total_waits,total_timeouts,time_waited,average_wait,time_waited_micro,event_id           
+                 from v$system_event@' || v_dblink ||' where event in (''log file sync'',''log file parallel write'',''db file scattered read'',''db file sequential read'',''direct path read''
+                ,''direct path read temp'',''direct write'',''direct write temp'')';	
+    open sash_cur FOR sql_stat; 
+    fetch sash_cur bulk collect into io_event_rec;
+    forall i in 1..io_event_rec.count 
+        insert into sash_io_system_event values io_event_rec(i);
+    commit;
+    close sash_cur;
+end collect_io_event;
 
-			forall i in 1..session_rec.count 
-				insert into sash_instance_stats values session_rec(i);
-			--dbms_output.put_line('Commits ' || session_rec(2).value ||' ' || session_rec(2).value || ' rate ' || to_number((session_rec(2).value - session_rec(2).value))/15 );
-			--dbms_output.put_line('Calls ' || session_rec1(3).value ||' ' || session_rec(3).value || ' rate ' || to_number((session_rec1(3).value - session_rec(3).value))/15 );
-			
-			commit;
-			close sash_cur;
-			dbms_lock.sleep(v_sleep);
-		end loop;   
-	   end collect_stats;
-	   
+procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
+type sash_sysmetric_history_type is table of sash_sysmetric_history%rowtype;
+session_rec sash_sysmetric_history_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;		
+l_dbid number;
+l_time date;		
+
+begin
+    l_dbid:=get_dbid(v_dblink);
+    select nvl(max(BEGIN_TIME),sysdate-30) into l_time from sash_sysmetric_history where dbid = l_dbid and inst_id = vinstance;
+    dbms_output.put_line(l_dbid || ' ' || vinstance || ' ' || l_time);
+    sql_stat := 'select  :1, :2, :3, BEGIN_TIME, INTSIZE_CSEC, GROUP_ID, METRIC_ID, VALUE from v$SYSMETRIC_HISTORY@'|| v_dblink || ' ss where begin_time > :4 and INTSIZE_CSEC > 2000 and metric_id in (select METRIC_ID from sash_sysmetric_names)';	
+    dbms_output.put_line(sql_stat || ' ' || l_time);
+    open sash_cur FOR sql_stat using l_dbid, vinstance, v_hist_samp_id, l_time;
+    fetch sash_cur bulk collect into session_rec;
+    forall i in 1..session_rec.count 
+        insert into sash_sysmetric_history values session_rec(i);
+    commit;
+    close sash_cur;
+end collect_metric;
+
+
+procedure collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
+type sash_iofuncstats_type is table of sash_iofuncstats%rowtype;
+session_rec sash_iofuncstats_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;		
+l_dbid number;	
+
+begin
+    l_dbid:=get_dbid(v_dblink);
+    sql_stat := 'select  :1, :2, :3, FUNCTION_ID, FUNCTION_NAME, SMALL_READ_MEGABYTES, SMALL_WRITE_MEGABYTES, LARGE_READ_MEGABYTES, LARGE_WRITE_MEGABYTES, SMALL_READ_REQS,        
+                 SMALL_WRITE_REQS, LARGE_READ_REQS, LARGE_WRITE_REQS, NUMBER_OF_WAITS , WAIT_TIME from v$iostat_function@'|| v_dblink || ' ss';	
+    open sash_cur FOR sql_stat using l_dbid, vinstance, v_hist_samp_id;
+    fetch sash_cur bulk collect into session_rec;
+    forall i in 1..session_rec.count 
+        insert into sash_iofuncstats values session_rec(i);
+    commit;
+    close sash_cur;
+end collect_iostat;
+
+
+procedure collect_stats(v_dblink varchar2, vinstance number) is
+type sash_instance_stats_type is table of sash_instance_stats%rowtype;
+session_rec sash_instance_stats_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;		
+l_dbid number;		
+
+begin
+    l_dbid:=get_dbid(v_dblink);
+    sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from v$sysstat@'|| v_dblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
+    open sash_cur FOR sql_stat; 
+    fetch sash_cur bulk collect into session_rec;
+    forall i in 1..session_rec.count 
+        insert into sash_instance_stats values session_rec(i);
+    commit;
+    close sash_cur;
+end collect_stats;
+
+procedure collect_other(v_sleep number, loops number, v_dblink varchar2, vinstance number) is
+type sash_instance_stats_type is table of sash_instance_stats%rowtype;
+session_rec sash_instance_stats_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;		
+l_dbid number;		
+
+begin
+    for l in 1..loops loop
+        collect_stats(v_dblink, vinstance);
+        collect_io_event(v_dblink, vinstance);
+        dbms_lock.sleep(v_sleep);
+    end loop;   
+end collect_other;
+
 	   
 	 PROCEDURE get_one(v_sql_id varchar2, v_dblink varchar2, v_inst_num number) is
 		l_hist_samp_id	number;
@@ -550,14 +643,20 @@ PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance num
        PROCEDURE get_all(v_dblink varchar2, v_inst_num number) is
 		l_hist_samp_id	number;
 		l_dbid number;
+        l_ver varchar2(8);
 	   begin
 		  select hist_id_seq.nextval into l_hist_samp_id from dual;
+          select substr(sash_pkg.get_version('odb11gr11'),0,2) into l_ver from dual;
 		  l_dbid:=get_dbid(v_dblink);
           get_sqlids(l_dbid);
 		  get_sqltxt(l_dbid,v_dblink);
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
           get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
           get_objs(l_dbid, v_dblink);
+          collect_metric(l_hist_samp_id, v_dblink , v_inst_num );
+          if (l_ver = '11') then
+            collect_iostat(l_hist_samp_id, v_dblink , v_inst_num );
+          end if ;
 		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
 		  commit;
        end get_all;	   

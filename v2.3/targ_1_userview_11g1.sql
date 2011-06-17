@@ -15,7 +15,7 @@
 
   -- prompt "elimates costly v$session_wait join for 10g"
   create view sashnow as 
-              Select
+             Select
                 d.dbid,
                 sysdate sample_time,
                                 s.indx          "SESSION_ID",
@@ -30,8 +30,8 @@
                                 decode(s.ksusesch, 65535, to_number(null), s.ksusesch) "SQL_CHILD_NUMBER",
                                 s.ksusesqi      "SQL_ID" ,    /* real SQL ID starting 10g */
                                 s.ksuudoct      "SQL_OPCODE"  /* aka SQL_OPCODE */,
-                                null "SQL_EXEC_START",
-                                null "SQL_EXEC_ID",
+                                s.ksusesesta "SQL_EXEC_START",
+                                decode(s.ksuseseid, 0, to_number(null), s.ksuseseid) "SQL_EXEC_ID",
                                 decode(s.ksusepeo,0,to_number(null),s.ksusepeo) "PLSQL_ENTRY_OBJECT_ID",
                                 decode(s.ksusepeo,0,to_number(null),s.ksusepes) "PLSQL_ENTRY_SUBPROGRAM_ID",
                                 decode(s.ksusepco,0,to_number(null),s.ksusepco) "PLSQL_OBJECT_ID",
@@ -74,7 +74,6 @@
                s.ksuseopc not in   /* waiting and the wait event is not idle */
                    (  select event# from v$event_name where wait_class='Idle' )
             );
-			
 			
  prompt "SASH user will be created and used only by repository connection via db link"
  prompt "SASH privileges are limited to create session and select on system objects listed in script" 

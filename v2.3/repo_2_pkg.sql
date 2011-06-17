@@ -172,15 +172,15 @@ begin
                                 start_date => sysdate,
                                 repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
                                 enabled=>true);
-                                
-        vwhat:='begin sash_pkg.collect_stats(60,60,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_stats_' || i.inst_num,
+        /*                        
+        vwhat:='begin sash_pkg.collect_other(60,60,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
+        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_other_' || i.inst_num,
                                 job_type => 'PLSQL_BLOCK',
                                 job_action => vwhat,
                                 start_date => sysdate,
                                 repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
                                 enabled => true);
-    
+        */
         vwhat:='begin sash_pkg.get_all('''|| i.db_link || ''',' || i.inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || i.inst_num,
                               job_type=>'PLSQL_BLOCK',

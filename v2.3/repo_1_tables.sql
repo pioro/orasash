@@ -323,28 +323,90 @@ create table sash_sqlids
       first_found date,
       found_count number );
 	  
-create unique index sash_sqlids_i on sash_sqlids
-      (
+create unique index sash_sqlids_i on sash_sqlids (
        sql_id,
 	   plan_hash_value,
        child_number,
 	   dbid,
-	   inst_id);
+	   inst_id
+);
 	   
-create table sash_sqltxt
-    ( dbid number,
-      address raw(8),
-      sql_id varchar2(13),
-      child_number number,
-      piece number,
-      sql_text varchar(64));
+create table sash_sqltxt (
+ DBID         NUMBER,
+ SQL_ID       VARCHAR2(13),
+ SQL_TEXT     CLOB,
+ COMMAND_TYPE NUMBER
+);
 
-create unique index sash_sqltxt_i on sash_sqltxt
-      (dbid,
-       sql_id,
-       piece);
+create index sash_sqltxt_1 on sash_sqltxt(SQL_ID, DBID);
 
-create table sash_sqlstats( 
+create table sash_sqlstats (
+ SNAP_ID                       NUMBER,
+ DBID                          NUMBER,
+ INSTANCE_NUMBER               NUMBER,
+ SQL_ID                        VARCHAR2(13),
+ PLAN_HASH_VALUE               NUMBER,
+ PARSE_CALLS                   NUMBER,
+ DISK_READS                    NUMBER,
+ DIRECT_WRITES                 NUMBER,
+ BUFFER_GETS                   NUMBER,
+ ROWS_PROCESSED                NUMBER,
+ SERIALIZABLE_ABORTS           NUMBER,
+ FETCHES                       NUMBER,
+ EXECUTIONS                    NUMBER,
+ END_OF_FETCH_COUNT            NUMBER,
+ LOADS                         NUMBER,
+ VERSION_COUNT                 NUMBER,
+ INVALIDATIONS                 NUMBER,
+ PX_SERVERS_EXECUTIONS         NUMBER,
+ CPU_TIME                      NUMBER,
+ ELAPSED_TIME                  NUMBER,
+ AVG_HARD_PARSE_TIME           NUMBER,
+ APPLICATION_WAIT_TIME         NUMBER,
+ CONCURRENCY_WAIT_TIME         NUMBER,
+ CLUSTER_WAIT_TIME             NUMBER,
+ USER_IO_WAIT_TIME             NUMBER,
+ PLSQL_EXEC_TIME               NUMBER,
+ JAVA_EXEC_TIME                NUMBER,
+ SORTS                         NUMBER,
+ SHARABLE_MEM                  NUMBER,
+ TOTAL_SHARABLE_MEM            NUMBER,
+ TYPECHECK_MEM                 NUMBER,
+ IO_INTERCONNECT_BYTES         NUMBER,
+ PHYSICAL_READ_REQUESTS        NUMBER,
+ PHYSICAL_READ_BYTES           NUMBER,
+ PHYSICAL_WRITE_REQUESTS       NUMBER,
+ PHYSICAL_WRITE_BYTES          NUMBER,
+ EXACT_MATCHING_SIGNATURE      NUMBER,
+ FORCE_MATCHING_SIGNATURE      NUMBER,
+ FETCHES_DELTA                 NUMBER,
+ END_OF_FETCH_COUNT_DELTA      NUMBER,
+ SORTS_DELTA                   NUMBER,
+ EXECUTIONS_DELTA              NUMBER,
+ PX_SERVERS_EXECS_DELTA        NUMBER,
+ LOADS_DELTA                   NUMBER,
+ INVALIDATIONS_DELTA           NUMBER,
+ PARSE_CALLS_DELTA             NUMBER,
+ DISK_READS_DELTA              NUMBER,
+ BUFFER_GETS_DELTA             NUMBER,
+ ROWS_PROCESSED_DELTA          NUMBER,
+ CPU_TIME_DELTA                NUMBER,
+ ELAPSED_TIME_DELTA            NUMBER,
+ IOWAIT_DELTA                  NUMBER,
+ CLWAIT_DELTA                  NUMBER,
+ APWAIT_DELTA                  NUMBER,
+ CCWAIT_DELTA                  NUMBER,
+ DIRECT_WRITES_DELTA           NUMBER,
+ PLSEXEC_TIME_DELTA            NUMBER,
+ JAVEXEC_TIME_DELTA            NUMBER,
+ IO_INTERCONNECT_BYTES_DELTA   NUMBER,
+ PHYSICAL_READ_REQUESTS_DELTA  NUMBER,
+ PHYSICAL_READ_BYTES_DELTA     NUMBER,
+ PHYSICAL_WRITE_REQUESTS_DELTA NUMBER,
+ PHYSICAL_WRITE_BYTES_DELTA    NUMBER
+);
+       
+create table sash_sqlstats_old( 
       dbid number, 
       hist_sample_id number, 
 	  inst_id number,			  
@@ -368,9 +430,9 @@ create table sash_sqlstats(
       rows_processed_delta number
 	  ); 
 	  
-create index sash_sqlstats_i1 on sash_sqlstats  (hist_sample_id);
+create index sash_sqlstats_i1 on sash_sqlstats_old  (hist_sample_id);
 
-create index sash_sqlstats_i2 on sash_sqlstats  (sql_id, plan_hash_value);
+create index sash_sqlstats_i2 on sash_sqlstats_old  (sql_id, plan_hash_value);
 	  
 create table sash_objs(
       dbid number,  
@@ -431,6 +493,59 @@ create unique index sash_configuration_unq on sash_configuration(param);
    
 insert into sash_configuration values ('SASH RETENTION','w');
 commit;
+
+create table SASH_IO_SYSTEM_EVENT (
+ DBID                    NUMBER,
+ INST_ID                 NUMBER,
+ SNAP_ID                 NUMBER,
+ SAMPLE_TIME             DATE,
+ TOTAL_WAITS             NUMBER,
+ TOTAL_TIMEOUTS          NUMBER,
+ TIME_WAITED             NUMBER,
+ AVERAGE_WAIT            NUMBER,
+ TIME_WAITED_MICRO       NUMBER,
+ EVENT_ID                NUMBER
+);
+
+create table SASH_SYSMETRIC_HISTORY (
+ DBID           NUMBER,
+ INST_ID        NUMBER,
+ SNAP_ID        NUMBER,
+ BEGIN_TIME     DATE,
+ INTSIZE_CSEC   NUMBER,
+ GROUP_ID       NUMBER,
+ METRIC_ID      NUMBER,
+ VALUE          NUMBER
+);
+
+create index SASH_SYSM_HISTORY_I1 on SASH_SYSMETRIC_HISTORY (DBID, INST_ID, BEGIN_TIME);
+
+create table SASH_SYSMETRIC_NAMES (
+ DBID           NUMBER,
+ METRIC_ID      NUMBER,
+ METRIC_NAME    VARCHAR2(64),
+ METRIC_UNIT    VARCHAR2(64)
+);
+
+create unique index SASH_SYSMETRIC_NAMES_I1 on SASH_SYSMETRIC_NAMES(DBID, METRIC_ID);
+
+create table SASH_IOFUNCSTATS (
+ DBID                    NUMBER,
+ INSTANCE_NUMBER         NUMBER,
+ SNAP_ID                 NUMBER, 
+ FUNCTION_ID             NUMBER,
+ FUNCTION_NAME           VARCHAR2(30),
+ SMALL_READ_MEGABYTES    NUMBER,
+ SMALL_WRITE_MEGABYTES   NUMBER,
+ LARGE_READ_MEGABYTES    NUMBER,
+ LARGE_WRITE_MEGABYTES   NUMBER,
+ SMALL_READ_REQS         NUMBER,
+ SMALL_WRITE_REQS        NUMBER,
+ LARGE_READ_REQS         NUMBER,
+ LARGE_WRITE_REQS        NUMBER,
+ NUMBER_OF_WAITS         NUMBER,
+ WAIT_TIME               NUMBER
+);
 
  
 create or replace force view sash_all
@@ -676,7 +791,9 @@ OBJECT_OWNER, OBJECT_NAME, OBJECT_ALIAS, OBJECT_INSTANCE, OBJECT_TYPE, OPTIMIZER
  from sash_sqlplans;
 
 	  
-
+create or replace view dba_hist_sysmetric_history as
+select snap_id, n.dbid, inst_id INSTANCE_NUMBER, begin_time, begin_time + INTSIZE_CSEC/100/24/3600 end_time, INTSIZE_CSEC INTSIZE, GROUP_ID, n.METRIC_ID, METRIC_NAME, VALUE, METRIC_UNIT from SASH_SYSMETRIC_NAMES n,
+sash_sysmetric_history h where n.METRIC_ID = h.METRIC_ID and n.dbid = h.dbid and n.dbid = ( select dbid from sash_target) order by begin_time;
 	  
 /*
  if you run this as SYS you'll have to recreate them
