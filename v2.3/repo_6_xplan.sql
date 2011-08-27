@@ -20,7 +20,7 @@ begin
     v_returnline.plan_table_output := lpad('-',40,'-');
     pipe row(v_returnline);
 
-    for cur in (select SQL_TEXT from sash_sqltxt where SQL_ID=v_sql_id order by piece) 
+    for cur in (select SQL_TEXT from sash_sqltxt where SQL_ID=v_sql_id) 
 	loop
       v_returnline.plan_table_output := cur.sql_text;
       pipe row(v_returnline);	
@@ -52,7 +52,7 @@ begin
     v_returnline.plan_table_output := lpad('-',40,'-');
     pipe row(v_returnline);
 
-    for cur in (select SQL_TEXT from sash_sqltxt where SQL_ID=v_sql_id order by piece) 
+    for cur in (select SQL_TEXT from sash_sqltxt where SQL_ID=v_sql_id) 
 	loop
       v_returnline.plan_table_output := cur.sql_text;
       pipe row(v_returnline);	

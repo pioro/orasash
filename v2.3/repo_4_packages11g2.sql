@@ -331,7 +331,6 @@ begin
 			v_lastall:=1;
 	end;
 */
-
 	sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
                sql_id,  plan_hash_value, parse_calls, disk_reads,
                direct_writes, buffer_gets, rows_processed, serializable_aborts,
@@ -340,11 +339,12 @@ begin
                avg_hard_parse_time, application_wait_time, concurrency_wait_time,
                cluster_wait_time, user_io_wait_time, plsql_exec_time, java_exec_time,
                sorts, sharable_mem, total_sharable_mem, typecheck_mem, io_interconnect_bytes,
-               io_disk_bytes, 0,0,0,0, exact_matching_signature, force_matching_signature ,
+               0, physical_read_requests,  physical_read_bytes, physical_write_requests,
+               physical_write_bytes, exact_matching_signature, force_matching_signature ,
                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
                from v$sqlstats@' || v_dblink || ' sql
-               where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
-        --where last_active_time > sysdate - :4/24';
+                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
+		--where last_active_time > sysdate - :4/24';
 		--open c for sql_stat using l_hist_samp_id, l_dbid, v_inst_num, v_lastall ;
         open c for sql_stat using l_hist_samp_id, l_dbid, v_inst_num;
 		fetch c bulk collect into sash_sqlstats_rec;
@@ -538,7 +538,7 @@ PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance num
             end loop;
        end collect;
 	   
-procedure collect_io_event(v_dblink varchar2, vinstance number, v_hist_samp_id number) is
+procedure collect_io_event(v_dblink varchar2, vinstance number) is
 type sash_io_system_event_type is table of sash_io_system_event%rowtype;
 io_event_rec sash_io_system_event_type;
 sql_stat varchar2(4000);
@@ -548,10 +548,10 @@ l_dbid number;
 
 begin
     l_dbid:=get_dbid(v_dblink);
-    sql_stat := 'select :1,:2,:3,sysdate,total_waits,total_timeouts,time_waited,average_wait,time_waited_micro,event_id           
+    sql_stat := 'select 1,sysdate,total_waits,total_timeouts,time_waited,average_wait,time_waited_micro,event_id           
                  from v$system_event@' || v_dblink ||' where event in (''log file sync'',''log file parallel write'',''db file scattered read'',''db file sequential read'',''direct path read''
                 ,''direct path read temp'',''direct write'',''direct write temp'')';	
-    open sash_cur FOR sql_stat using l_dbid, vinstance, v_hist_samp_id; 
+    open sash_cur FOR sql_stat; 
     fetch sash_cur bulk collect into io_event_rec;
     forall i in 1..io_event_rec.count 
         insert into sash_io_system_event values io_event_rec(i);
@@ -634,7 +634,7 @@ l_dbid number;
 begin
     for l in 1..loops loop
         collect_stats(v_dblink, vinstance);
-        collect_io_event(v_dblink, vinstance,1);
+        collect_io_event(v_dblink, vinstance);
         dbms_lock.sleep(v_sleep);
     end loop;   
 end collect_other;
@@ -660,7 +660,7 @@ end collect_other;
         l_ver varchar2(8);
 	   begin
 		  select hist_id_seq.nextval into l_hist_samp_id from dual;
-          l_ver:=substr(sash_pkg.get_version(v_dblink),0,2);
+          select substr(sash_pkg.get_version(v_dblink),0,2) into l_ver from dual;
 		  l_dbid:=get_dbid(v_dblink);
           get_sqlids(l_dbid);
 		  get_sqltxt(l_dbid,v_dblink);
@@ -668,7 +668,6 @@ end collect_other;
           get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
           get_objs(l_dbid, v_dblink);
           collect_metric(l_hist_samp_id, v_dblink , v_inst_num );
-          collect_io_event(v_dblink, v_inst_num,l_hist_samp_id);
           if (l_ver = '11') then
             collect_iostat(l_hist_samp_id, v_dblink , v_inst_num );
           end if ;

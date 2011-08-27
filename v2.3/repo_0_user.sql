@@ -43,3 +43,5 @@
  grant create view to &SASH_USER;
  grant create public synonym to &SASH_USER;
  grant execute on dbms_lock to &SASH_USER;
+ grant Create job to  &SASH_USER;
+ grant manage scheduler to  &SASH_USER;

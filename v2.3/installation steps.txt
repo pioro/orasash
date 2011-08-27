@@ -40,7 +40,7 @@ exec sash_pkg.set_dbid('<db_link>');
 ex. one instance
 exec sash_repo.add_db('svr1', 1521, 'sash', 'test', 'test1', 1, '11.2.0.2', 8);
 exec sash_pkg.configure_db('test1');
-
+exec sash_pkg.set_dbid('test1');
 
 ex. RAC
 exec sash_repo.add_db('svr1-vip', 1521, 'sash', 'test', 'test1', 1, '11.2.0.2', 8);

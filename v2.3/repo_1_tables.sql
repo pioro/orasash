@@ -69,6 +69,13 @@ drop table sash_extents;
 drop table sash_configuration;
 drop table sash_hist_sample;
 drop table waitgroups;
+drop table sash_io_system_event;
+drop table sash_sysmetric_history;
+drop table sash_sysmetric_names;
+drop table sash_iofuncstats;
+drop table sash_sqlstats_old;
+drop table sash_instance_stats;
+drop table sash_hour_sqlid;
 
  
 Prompt Create sequence
@@ -373,10 +380,11 @@ create table sash_sqlstats (
  TOTAL_SHARABLE_MEM            NUMBER,
  TYPECHECK_MEM                 NUMBER,
  IO_INTERCONNECT_BYTES         NUMBER,
- PHYSICAL_READ_REQUESTS        NUMBER,
- PHYSICAL_READ_BYTES           NUMBER,
- PHYSICAL_WRITE_REQUESTS       NUMBER,
- PHYSICAL_WRITE_BYTES          NUMBER,
+ IO_DISK_BYTES                 NUMBER,
+ physical_read_requests        NUMBER,  
+ physical_read_bytes           NUMBER, 
+ physical_write_requests       NUMBER,
+ physical_write_bytes          NUMBER,
  EXACT_MATCHING_SIGNATURE      NUMBER,
  FORCE_MATCHING_SIGNATURE      NUMBER,
  FETCHES_DELTA                 NUMBER,
@@ -400,11 +408,17 @@ create table sash_sqlstats (
  PLSEXEC_TIME_DELTA            NUMBER,
  JAVEXEC_TIME_DELTA            NUMBER,
  IO_INTERCONNECT_BYTES_DELTA   NUMBER,
- PHYSICAL_READ_REQUESTS_DELTA  NUMBER,
- PHYSICAL_READ_BYTES_DELTA     NUMBER,
- PHYSICAL_WRITE_REQUESTS_DELTA NUMBER,
- PHYSICAL_WRITE_BYTES_DELTA    NUMBER
+ IO_DISK_BYTES_DELTA           NUMBER,
+ physical_read_requests_delta  NUMBER,  
+ physical_read_bytes_delta     NUMBER, 
+ physical_write_requests_delta NUMBER,
+ physical_write_bytes_delta    NUMBER 
 );
+
+create index sash_sqlstats_i1 on sash_sqlstats (snap_id);
+
+create index sash_sqlstats_i2 on sash_sqlstats (sql_id, plan_hash_value);
+
        
 create table sash_sqlstats_old( 
       dbid number, 
@@ -430,9 +444,9 @@ create table sash_sqlstats_old(
       rows_processed_delta number
 	  ); 
 	  
-create index sash_sqlstats_i1 on sash_sqlstats_old  (hist_sample_id);
+create index sash_sqlstats_old_i1 on sash_sqlstats_old  (hist_sample_id);
 
-create index sash_sqlstats_i2 on sash_sqlstats_old  (sql_id, plan_hash_value);
+create index sash_sqlstats_old_i2 on sash_sqlstats_old  (sql_id, plan_hash_value);
 	  
 create table sash_objs(
       dbid number,  
@@ -700,9 +714,7 @@ create or replace view dba_hist_active_sess_history
 create or replace view v$sqltext_with_newlines as 
      select 
             DBID         ,
-            ADDRESS      ,
             sql_id,    
-            PIECE        ,
             SQL_TEXT     
      from  
             sash_sqltxt
@@ -732,7 +744,7 @@ create or replace view v$sql_plan as SELECT null address, null hash_value, sql_i
 	   null projection, null time, null qblock_name, null remarks
 	   FROM sash_sqlplans;	 
 
-create or replace view v$sql as select sql_id, 100 command_type, listagg( REGEXP_REPLACE(REGEXP_REPLACE(trim(sql_text),'\n',''),'\r',''),'') within group (order by piece) sql_text from sash_sqltxt group by sql_id;	 
+create or replace view v$sql as select sql_id, 100 command_type, sql_text from sash_sqltxt;	 
 
 create or replace view v$parameter as select * from sash_params
           where dbid = ( select dbid from sash_target);
