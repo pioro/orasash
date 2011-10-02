@@ -163,10 +163,10 @@ begin
     end;
 
     v_startmin := v_getall * 60;
-    for i in (select db_link, inst_num from sash_targets) loop
+    for i in (select db_link, inst_num, dbname from sash_targets) loop
     
         vwhat:='begin sash_pkg.collect(1,3600,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || i.inst_num,
+        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || i.dbname || i.inst_num,
                                 job_type => 'PLSQL_BLOCK',
                                 job_action => vwhat,
                                 start_date => sysdate,
@@ -182,7 +182,7 @@ begin
                                 enabled => true);
         */
         vwhat:='begin sash_pkg.get_all('''|| i.db_link || ''',' || i.inst_num || '); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || i.inst_num,
+        dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || i.dbname || i.inst_num,
                               job_type=>'PLSQL_BLOCK',
                               job_action=> vwhat,
                               start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),

@@ -234,8 +234,11 @@ create index sash_instance_stats_id1 on sash_instance_stats(sample_time, STATIST
  create table sash_hist_sample(
 	hist_sample_id  number,
 	dbid			number,
+	instance_number		number,
 	hist_date		date
  );
+
+create index sash_hist_sample_i1 on sash_hist_sample (dbid, instance_number, hist_sample_id);
 	
  create table sash_sqlplans(
       sql_id    	  varchar2(13),
@@ -729,9 +732,10 @@ create or replace view v$instance as select
      where dbid = ( select dbid from sash_target);
 	 
 create or replace view v$database as select 
-		dbid	 dbid,
+        dbid	 dbid,
         host     host_name,
-        sid      instance_name
+        sid      instance_name,
+        dbname   name
      from sash_targets 
      where dbid = ( select dbid from sash_target);	 
 	 
@@ -744,7 +748,7 @@ create or replace view v$sql_plan as SELECT null address, null hash_value, sql_i
 	   null projection, null time, null qblock_name, null remarks
 	   FROM sash_sqlplans;	 
 
-create or replace view v$sql as select sql_id, 100 command_type, sql_text from sash_sqltxt;	 
+create or replace view v$sql as select sql_id, 100 command_type, sql_text from sash_sqltxt where  dbid = ( select dbid from sash_target);	 
 
 create or replace view v$parameter as select * from sash_params
           where dbid = ( select dbid from sash_target);
@@ -806,6 +810,44 @@ OBJECT_OWNER, OBJECT_NAME, OBJECT_ALIAS, OBJECT_INSTANCE, OBJECT_TYPE, OPTIMIZER
 create or replace view dba_hist_sysmetric_history as
 select snap_id, n.dbid, inst_id INSTANCE_NUMBER, begin_time, begin_time + INTSIZE_CSEC/100/24/3600 end_time, INTSIZE_CSEC INTSIZE, GROUP_ID, n.METRIC_ID, METRIC_NAME, VALUE, METRIC_UNIT from SASH_SYSMETRIC_NAMES n,
 sash_sysmetric_history h where n.METRIC_ID = h.METRIC_ID and n.dbid = h.dbid and n.dbid = ( select dbid from sash_target) order by begin_time;
+
+
+create or replace view v$sysmetric_history as 
+select n.DBID, INST_ID, BEGIN_TIME, BEGIN_TIME + INTSIZE_CSEC/100/24/3600 END_TIME, INTSIZE_CSEC, GROUP_ID, n.METRIC_ID, n.METRIC_NAME, VALUE, n.METRIC_UNIT 
+from  sash_sysmetric_history h, sash_sysmetric_names n where h.dbid = n.dbid and n.dbid = ( select dbid from sash_target) and h.METRIC_ID = n.METRIC_ID and BEGIN_TIME > sysdate - 2/24
+order by snap_id;
+
+create or replace view v$iostat_function as
+select  dbid, INSTANCE_NUMBER, FUNCTION_ID, FUNCTION_NAME, SMALL_READ_MEGABYTES, SMALL_WRITE_MEGABYTES, LARGE_READ_MEGABYTES, LARGE_WRITE_MEGABYTES, SMALL_READ_REQS,        
+SMALL_WRITE_REQS, LARGE_READ_REQS, LARGE_WRITE_REQS, NUMBER_OF_WAITS , WAIT_TIME from SASH_IOFUNCSTATS io 
+where snap_id = (select max(HIST_SAMPLE_ID) from sash_hist_sample h where io.instance_number = h.instance_number and io.dbid = h.dbid)
+order by INSTANCE_NUMBER, FUNCTION_ID;
+
+create or replace view dba_hist_sqlstat as 
+select SNAP_ID, DBID, INSTANCE_NUMBER, SQL_ID, PLAN_HASH_VALUE, PARSE_CALLS, DISK_READS, DIRECT_WRITES, BUFFER_GETS,
+ROWS_PROCESSED, SERIALIZABLE_ABORTS, FETCHES, EXECUTIONS, END_OF_FETCH_COUNT, LOADS, VERSION_COUNT, INVALIDATIONS,
+PX_SERVERS_EXECUTIONS, CPU_TIME, ELAPSED_TIME, AVG_HARD_PARSE_TIME, APPLICATION_WAIT_TIME, CONCURRENCY_WAIT_TIME,
+CLUSTER_WAIT_TIME, USER_IO_WAIT_TIME, PLSQL_EXEC_TIME, JAVA_EXEC_TIME, SORTS, SHARABLE_MEM, TOTAL_SHARABLE_MEM,
+TYPECHECK_MEM, IO_INTERCONNECT_BYTES, IO_DISK_BYTES, PHYSICAL_READ_REQUESTS, PHYSICAL_READ_BYTES, PHYSICAL_WRITE_REQUESTS,
+PHYSICAL_WRITE_BYTES, EXACT_MATCHING_SIGNATURE, FORCE_MATCHING_SIGNATURE, FETCHES_DELTA,  END_OF_FETCH_COUNT_DELTA, 
+SORTS_DELTA, EXECUTIONS_DELTA, PX_SERVERS_EXECS_DELTA, LOADS_DELTA, INVALIDATIONS_DELTA, PARSE_CALLS_DELTA,
+DISK_READS_DELTA, BUFFER_GETS_DELTA, ROWS_PROCESSED_DELTA, CPU_TIME_DELTA, ELAPSED_TIME_DELTA, IOWAIT_DELTA,                     
+CLWAIT_DELTA, APWAIT_DELTA, CCWAIT_DELTA, DIRECT_WRITES_DELTA, PLSEXEC_TIME_DELTA, JAVEXEC_TIME_DELTA,
+IO_INTERCONNECT_BYTES_DELTA, IO_DISK_BYTES_DELTA, PHYSICAL_READ_REQUESTS_DELTA, PHYSICAL_READ_BYTES_DELTA,
+PHYSICAL_WRITE_REQUESTS_DELTA, PHYSICAL_WRITE_BYTES_DELTA       
+from sash_sqlstats s 
+order by snap_id, INSTANCE_NUMBER;
+
+create or replace view  v$sqlstats as 
+select DBID, INSTANCE_NUMBER, SQL_ID, PLAN_HASH_VALUE, PARSE_CALLS, DISK_READS, DIRECT_WRITES, BUFFER_GETS,
+ROWS_PROCESSED, SERIALIZABLE_ABORTS, FETCHES, EXECUTIONS, END_OF_FETCH_COUNT, LOADS, VERSION_COUNT, INVALIDATIONS,
+PX_SERVERS_EXECUTIONS, CPU_TIME, ELAPSED_TIME, AVG_HARD_PARSE_TIME, APPLICATION_WAIT_TIME, CONCURRENCY_WAIT_TIME,
+CLUSTER_WAIT_TIME, USER_IO_WAIT_TIME, PLSQL_EXEC_TIME, JAVA_EXEC_TIME, SORTS, SHARABLE_MEM, TOTAL_SHARABLE_MEM,
+TYPECHECK_MEM, IO_INTERCONNECT_BYTES, IO_DISK_BYTES, PHYSICAL_READ_REQUESTS, PHYSICAL_READ_BYTES, PHYSICAL_WRITE_REQUESTS,
+PHYSICAL_WRITE_BYTES, EXACT_MATCHING_SIGNATURE, FORCE_MATCHING_SIGNATURE from sash_sqlstats s where 
+snap_id = (select max(HIST_SAMPLE_ID) from sash_hist_sample h where s.instance_number = h.instance_number and s.dbid = h.dbid)
+order by INSTANCE_NUMBER;
+
 	  
 /*
  if you run this as SYS you'll have to recreate them

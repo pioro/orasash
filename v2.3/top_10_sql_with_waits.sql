@@ -54,7 +54,7 @@ where sample_time >= to_date('&starttime','DD/MM/YYYY HH24:MI') --(sysdate - 41/
 and sample_time <= to_date('&stoptime','DD/MM/YYYY HH24:MI') --(sysdate - 1/24/60)
 and session_state = 'ON CPU'
 group by  sql_id
-) where sql_id <> 0
+) where sql_id is not null  
 order by sum(wt) over (partition by sql_id) desc
 ) 
 group by sql_id

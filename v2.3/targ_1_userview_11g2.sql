@@ -105,3 +105,4 @@ grant select on v_$sysstat to sash;
 grant select on v_$system_event to sash;
 grant select on v_$sysmetric_history to sash;
 grant select on v_$iostat_function to sash;
+grant select on v_$sqlstats to sash;

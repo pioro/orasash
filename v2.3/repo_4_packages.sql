@@ -174,6 +174,8 @@ PROCEDURE set_dbid(v_dblink varchar2) is
          insert into 
             sash_target ( dbid )
             values (l_dbid);
+     else
+         update sash_target set dbid = l_dbid;     
      end if;
 end set_dbid;
 
@@ -321,6 +323,8 @@ type ctype is ref cursor;
 c ctype;
 sql_stat varchar2(4000);
 v_lastall number;
+l_ver varchar2(8);
+l_oldsnap number;
 
 begin
 /*
@@ -332,6 +336,29 @@ begin
 	end;
 */
 
+
+        begin
+	        select max(snap_id) into l_oldsnap from sash_sqlstats m where m.dbid = l_dbid and m.instance_number = v_inst_num; 
+                exception when NO_DATA_FOUND then
+                        l_oldsnap:=1;
+        end;
+
+
+        l_ver:=substr(sash_pkg.get_version(v_dblink),0,4); 
+	if (l_ver = '11.1') then
+		sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
+        	       sql_id,  plan_hash_value, parse_calls, disk_reads,
+               	       direct_writes, buffer_gets, rows_processed, serializable_aborts,
+                       fetches, executions, end_of_fetch_count, loads, version_count,
+                       invalidations,  px_servers_executions,  cpu_time, elapsed_time,
+                       avg_hard_parse_time, application_wait_time, concurrency_wait_time,
+                       cluster_wait_time, user_io_wait_time, plsql_exec_time, java_exec_time,
+                       sorts, sharable_mem, total_sharable_mem, typecheck_mem, io_interconnect_bytes,
+                       io_disk_bytes, 0,0,0,0, exact_matching_signature, force_matching_signature ,
+                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+                       from v$sqlstats@' || v_dblink || ' sql
+                       where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
+        elsif (l_ver = '11.2') then
 	sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
                sql_id,  plan_hash_value, parse_calls, disk_reads,
                direct_writes, buffer_gets, rows_processed, serializable_aborts,
@@ -340,10 +367,12 @@ begin
                avg_hard_parse_time, application_wait_time, concurrency_wait_time,
                cluster_wait_time, user_io_wait_time, plsql_exec_time, java_exec_time,
                sorts, sharable_mem, total_sharable_mem, typecheck_mem, io_interconnect_bytes,
-               io_disk_bytes, 0,0,0,0, exact_matching_signature, force_matching_signature ,
+               0, physical_read_requests,  physical_read_bytes, physical_write_requests,
+               physical_write_bytes, exact_matching_signature, force_matching_signature ,
                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
                from v$sqlstats@' || v_dblink || ' sql
-               where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
+                where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
+        end if;
         --where last_active_time > sysdate - :4/24';
 		--open c for sql_stat using l_hist_samp_id, l_dbid, v_inst_num, v_lastall ;
         open c for sql_stat using l_hist_samp_id, l_dbid, v_inst_num;
@@ -365,7 +394,7 @@ begin
          s.physical_read_requests - old.physical_read_requests, s.physical_read_bytes - old.physical_read_bytes,
          s.physical_write_requests - old.physical_write_requests, s.physical_write_bytes - old.physical_write_bytes
          from sash_sqlstats old where 
-		 old.snap_id = s.snap_id - 1 and old.sql_id = s.sql_id and old.plan_hash_value = s.plan_hash_value)
+		 old.snap_id = l_oldsnap and old.sql_id = s.sql_id and old.plan_hash_value = s.plan_hash_value and old.dbid = s.dbid and old.instance_number = s.instance_number)
 		 where snap_id = l_hist_samp_id;
 		
 end get_sqlstats;
@@ -650,7 +679,7 @@ end collect_other;
 		  get_sqltxt(l_dbid,v_dblink);
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
           get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
-		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
+		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, v_inst_num, sysdate);
 		  commit;
        end get_one;	
 
@@ -672,7 +701,7 @@ end collect_other;
           if (l_ver = '11') then
             collect_iostat(l_hist_samp_id, v_dblink , v_inst_num );
           end if ;
-		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, sysdate);
+		  insert into sash_hist_sample values (l_hist_samp_id, l_dbid, v_inst_num, sysdate);
 		  commit;
        end get_all;	   
 	   

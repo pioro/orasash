@@ -35,7 +35,7 @@
                                 decode(s.ksusepeo,0,to_number(null),s.ksusepeo) "PLSQL_ENTRY_OBJECT_ID",
                                 decode(s.ksusepeo,0,to_number(null),s.ksusepes) "PLSQL_ENTRY_SUBPROGRAM_ID",
                                 decode(s.ksusepco,0,to_number(null),s.ksusepco) "PLSQL_OBJECT_ID",
-                                decode(s.ksusepcs,0,to_number(null),s.ksusepcs) "PLSQL_SUBPROGRAM_ID",
+                                null "PLSQL_SUBPROGRAM_ID",
                                 s.ksuseopc      "EVENT#",
                 s.ksuseseq      "SEQ#"        /* xksuse.ksuseseq */,
                                 s.ksusep1       "P1"          /* xksuse.ksusep1  */,
@@ -106,3 +106,4 @@ grant select on v_$sysstat to sash;
 grant select on v_$system_event to sash;
 grant select on v_$sysmetric_history to sash;
 grant select on v_$iostat_function to sash;
+grant select on v_$sqlstats to sash;
