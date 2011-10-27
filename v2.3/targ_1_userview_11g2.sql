@@ -23,7 +23,8 @@
                 s.ksuseser      "SESSION_SERIAL#",
 				s.ksuseflg      "SESSION_TYPE"  ,
                 s.ksuudlui      "USER_ID",
-				s.ksuudoct "COMMAND",		
+				s.ksuudoct "COMMAND",	
+                s.ksusemnm "MACHINE",                
 				s.ksusemnp "PORT",	
 				s.ksusesql      "SQL_ADDRESS",
                 s.ksusesph      "SQL_PLAN_HASH_VALUE",
@@ -56,8 +57,7 @@
 				s.ksuseblocker,
 				s.ksusesvc "SERVICE_NAME",
 				s.ksusefix      "FIXED_TABLE_SEQUENCE", /* FIXED_TABLE_SEQUENCE */
-				s.KSUSEQCSID "QC",
-                s.ksusemnm "MACHINE"
+				s.KSUSEQCSID "QC"
 				 from
                x$ksuse s , /* v$session */
                v$database d
