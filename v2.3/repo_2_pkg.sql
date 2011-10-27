@@ -19,6 +19,7 @@ CREATE OR REPLACE PACKAGE sash_repo AS
     procedure create_repository_jobs;
     procedure create_collection_jobs;
     procedure stop_and_remove_rep_jobs;
+    procedure watchdog;
     PROCEDURE set_retention(rtype varchar2);
     procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
 END sash_repo;
@@ -133,6 +134,8 @@ begin
                                   start_date => v_nextdate,
                                   repeat_interval => v_interval,
                                   enabled=>true);
+        dbms_scheduler.create_job(job_name => 'watchdog', job_type => 'plsql_block', job_action => 'sash_repo.watchdog', start_date => sysdate, 
+                                  repeat_interval => 'freq = minutely; interval = 5',enabled=>true);
       end;
     else
       log_message('create_repository_jobs','repository job exist - remove first', 'I');
@@ -271,6 +274,20 @@ exception
     when others then
         log_message('start_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
+end;
+
+procedure watchdog is
+i number;
+begin
+  select count(*) into i from user_scheduler_jobs where JOB_NAME like 'SASH_PKG_COLLECT%' and state <> 'RUNNING';
+  if ( i != 0 ) then
+      log_message('watchdog','Trying to restart collection jobs','I');
+      start_collecting_jobs;
+  end if;
+exception
+    when others then
+        log_message('watchdog', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20080,'SASH watchdog error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
 
 procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0) is
