@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------------------------------------
--- File Revision $Rev$
--- Last change $Date$
--- SVN URL $HeadURL$
+-- File Revision $Rev: 43 $
+-- Last change $Date: 2011-10-27 17:07:43 +0100 (Thu, 27 Oct 2011) $
+-- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/repo_2_pkg.sql $
 ---------------------------------------------------------------------------------------------------
 
 -- (c) Kyle Hailey 2007
