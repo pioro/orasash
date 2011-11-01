@@ -13,74 +13,25 @@
 --               new table - sash_extents to keep extentes from target database
 -- v2.3 Changes: new fields in SASH table
 
-Prompt Are you connected as the SASH schema owner? All objects will be dropped and recreated
-Accept toto prompt 'If you are not the SASH user hit Control-C , else Return : ' 
+set term off
+spool exit.sql
+select 'exit' from dual where SYS_CONTEXT ('USERENV', 'SESSION_USER') != upper('&SASH_USER');
+spool off
 
-Prompt Dropping old objects
+@exit.sql
 
-drop table sash1;
-drop table sash2;
-drop table sash3;
-drop table sash4;
-drop table sash5;
-drop table sash6;
-drop table sash7;
-drop table sash8;		
-drop table sash9;		
-drop table sash10;
-drop table sash11;
-drop table sash12;
-drop table sash13;
-drop table sash14;
-drop table sash15;
-drop table sash16;
-drop table sash17;
-drop table sash18;
-drop table sash19;
-drop table sash20;
-drop table sash21;
-drop table sash22;
-drop table sash23;
-drop table sash24;
-drop table sash25;
-drop table sash26;
-drop table sash27;
-drop table sash28;
-drop table sash29;
-drop table sash30;
-drop table sash31;
-drop table sash_log;
-drop table sash_params;
-drop table sash_sqlids;
-drop table sash_sqltxt;
-drop table sash_sqlstats; 
-drop table sash_sqlplans;
-drop table sash_event_names;
-drop table sash_objs;
-drop table sash_users;
-drop table sash_data_files;
-drop table sash_sesstat;
-drop table sash_stats;
-drop table sash_sessids;
-drop table sash_latch;
-drop table sash_targets;
-drop table sash_target;
-drop table sash_extents;
-drop table sash_configuration;
-drop table sash_hist_sample;
-drop table waitgroups;
-drop table sash_io_system_event;
-drop table sash_sysmetric_history;
-drop table sash_sysmetric_names;
-drop table sash_iofuncstats;
-drop table sash_sqlstats_old;
-drop table sash_instance_stats;
-drop table sash_hour_sqlid;
+-- drop objects
 
+spool drop.sql
+select 'drop ' || object_type || ' ' || object_name || ';' from user_objects where object_type in ('TABLE','SEQUENCE','PACKAGE','DATABASE LINK');
+spool off
+@drop.sql
+
+set term on
+spool sash_tables.log
  
 Prompt Create sequence
 
-drop sequence hist_id_seq;
 create sequence hist_id_seq;				
 
 Prompt Create tables
@@ -629,7 +580,7 @@ as
    union all
    select * from sash31;
 
-create or replace view sash.v$active_session_history as
+create or replace view v$active_session_history as
        select
          ash.dbid           ,
 		 ash.inst_id		,
@@ -863,4 +814,4 @@ order by INSTANCE_NUMBER;
    v$parameter 
 */
 
-
+spool off

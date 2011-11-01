@@ -16,6 +16,8 @@
 --				 - RAC support
 --               - multi db support
 
+spool sash_pkg.log
+prompt Crating SASH_PKG package
 
 create sequence sashseq ;
 
@@ -712,3 +714,5 @@ END sash_pkg;
 
 
 show errors
+spool off
+

@@ -22,7 +22,7 @@ begin
 
     for cur in (select SQL_TEXT from sash_sqltxt where SQL_ID=v_sql_id) 
 	loop
-      v_returnline.plan_table_output := cur.sql_text;
+      v_returnline.plan_table_output := substr(cur.sql_text,1,300);
       pipe row(v_returnline);	
 	end loop;
 	
@@ -54,7 +54,7 @@ begin
 
     for cur in (select SQL_TEXT from sash_sqltxt where SQL_ID=v_sql_id) 
 	loop
-      v_returnline.plan_table_output := cur.sql_text;
+      v_returnline.plan_table_output := substr(cur.sql_text,1,300);
       pipe row(v_returnline);	
 	end loop;
 

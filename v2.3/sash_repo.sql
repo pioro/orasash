@@ -10,6 +10,9 @@
 -- v2.2 Changes: todo - add purging of historical data
 
 
+spool sash_repo.log
+prompt Crating SASH_REPO package
+
 CREATE OR REPLACE PACKAGE sash_repo AS
     PROCEDURE purge;
     procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0);
@@ -333,4 +336,4 @@ end;
 end sash_repo;
 /
 show err 
-
+spool off
