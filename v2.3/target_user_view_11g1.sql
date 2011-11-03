@@ -10,20 +10,64 @@
 -- v2.1 - Separated into new file to simplify installation process
 --      - New access user and privileges added
 -- v2.3 - new fields added - 11g2
+--      - checking if SYS user is used to execute 
+--      - script clean up
 
-  drop view sashnow;
 
-  -- prompt "elimates costly v$session_wait join for 10g"
-  create view sashnow as 
-             Select
+			
+set ver off
+set term off
+spool exit.sql
+select 'exit' from dual where SYS_CONTEXT ('USERENV', 'SESSION_USER') != upper('SYS');
+spool off
+@exit.sql
+set term on
+
+prompt "SASH user will be created and used only by repository connection via db link"
+prompt "SASH privileges are limited to create session and select on system objects listed in script" 
+accept SASH_PASS default sash prompt "Enter SASH password ? "
+accept SASH_TS default users prompt "Enter SASH default tablespace [or enter to accept USERS tablespace] ? "
+prompt "SASH default tablespace is: " &SASH_TS
+								 
+
+create user sash identified by &SASH_PASS default tablespace &SASH_TS temporary tablespace temp;
+
+-- sash user grants 
+grant create session to sash;				 
+grant select on sys.sashnow to sash;
+grant select on v_$database to sash;
+grant select on dba_users to sash;
+grant select on v_$sql to sash;
+grant select on v_$parameter to sash;
+grant select on dba_data_files to sash;
+grant select on v_$instance to sash;
+grant select on dba_objects to sash;
+grant select on v_$sql_plan to sash;
+grant select on DBA_LIBRARIES to sash;
+grant select on v_$event_name to sash;
+grant select on v_$sql_plan to sash;
+grant select on v_$sqltext to sash;
+grant select on v_$latch to sash;
+grant select on dba_extents to sash;
+grant select on v_$sysstat to sash;
+grant select on v_$system_event to sash;
+grant select on v_$sysmetric_history to sash;
+grant select on v_$iostat_function to sash;
+grant select on v_$sqlstats to sash;
+
+
+prompt "SASHNOW view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
+create or replace view sashnow as 
+         select
                 d.dbid,
                 sysdate sample_time,
-                                s.indx          "SESSION_ID",
-                                decode(s.ksusetim, 0,'WAITING','ON CPU') "SESSION_STATE",
+                s.indx          "SESSION_ID",
+                decode(s.ksusetim, 0,'WAITING','ON CPU') "SESSION_STATE",
                 s.ksuseser      "SESSION_SERIAL#",
-                                s.ksuseflg      "SESSION_TYPE"  ,
+                s.ksuseflg      "SESSION_TYPE"  ,
                 s.ksuudlui      "USER_ID",
-                                s.ksuudoct "COMMAND",
+                s.ksuudoct "COMMAND",
+                s.ksusemnm "MACHINE"
                                 null "PORT",
                                 s.ksusesql      "SQL_ADDRESS",
                 s.ksusesph      "SQL_PLAN_HASH_VALUE",
@@ -57,7 +101,6 @@
                                 s.ksusesvc "SERVICE_NAME",
                                 s.ksusefix      "FIXED_TABLE_SEQUENCE", /* FIXED_TABLE_SEQUENCE */
                                 s.KSUSEQCSID "QC",
-                s.ksusemnm "MACHINE"
                                  from
                x$ksuse s , /* v$session */
                v$database d
@@ -74,35 +117,3 @@
                s.ksuseopc not in   /* waiting and the wait event is not idle */
                    (  select event# from v$event_name where wait_class='Idle' )
             );
-			
- prompt "SASH user will be created and used only by repository connection via db link"
- prompt "SASH privileges are limited to create session and select on system objects listed in script" 
- accept SASH_PASS default sash prompt "Enter SASH password ? "
- accept SASH_TS default users prompt "Enter SASH default tablespace [or enter to accept USERS tablespace] ? "
- prompt "SASH default tablespace is: " &SASH_TS
-								 
-
-create user sash identified by &SASH_PASS default tablespace &SASH_TS temporary tablespace temp;
-
--- sash user grants 
-grant create session to sash;				 
-grant select on sys.sashnow to sash;
-grant select on v_$database to sash;
-grant select on dba_users to sash;
-grant select on v_$sql to sash;
-grant select on v_$parameter to sash;
-grant select on dba_data_files to sash;
-grant select on v_$instance to sash;
-grant select on dba_objects to sash;
-grant select on v_$sql_plan to sash;
-grant select on DBA_LIBRARIES to sash;
-grant select on v_$event_name to sash;
-grant select on v_$sql_plan to sash;
-grant select on v_$sqltext to sash;
-grant select on v_$latch to sash;
-grant select on dba_extents to sash;
-grant select on v_$sysstat to sash;
-grant select on v_$system_event to sash;
-grant select on v_$sysmetric_history to sash;
-grant select on v_$iostat_function to sash;
-grant select on v_$sqlstats to sash;
