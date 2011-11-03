@@ -41,7 +41,7 @@ CREATE OR REPLACE PACKAGE BODY sash_repo AS
 procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
 PRAGMA AUTONOMOUS_TRANSACTION; 
 begin
-    insert into sash_log (action, message,result) values (vaction, vmessage,vresults);
+    insert into sash_log (log_id, action, message,result) values (log_id_seq.nextval, vaction, vmessage,vresults);
     commit;
 end;
 
@@ -191,6 +191,7 @@ begin
                                 start_date => sysdate,
                                 repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
                                 enabled=>true);
+        log_message('create_collection_jobs','adding scheduler job sash_pkg_collect_' || i.dbname || i.inst_num,'I');
         /*                  
         vwhat:='begin sash_pkg.collect_other(60,60,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_collect_other_' || i.inst_num,
@@ -207,6 +208,7 @@ begin
                               start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
+        log_message('create_collection_jobs','adding scheduler job sash_pkg_get_all_' || i.dbname || i.inst_num,'I');
                         
     end loop;
     commit;
@@ -278,27 +280,54 @@ begin
             RAISE_APPLICATION_ERROR(-20060,'SASH  stop_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
 end;
 
-procedure start_collecting_jobs is
+
+procedure start_snap_collecting_jobs is
 begin
-    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG%' and state<>'RUNNING') loop
+    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_GET%' and state<>'RUNNING') loop
       dbms_scheduler.enable(i.job_name);
       dbms_scheduler.run_job(i.job_name, false);
       dbms_output.put_line('starting scheduler job ' || i.job_name);
-      log_message('start_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
+      log_message('start_snap_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
     end loop;
 exception
     when others then
-        log_message('start_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
+        log_message('start_snap_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+end;
+
+
+
+procedure start_rt_collecting_jobs is
+begin
+    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_COLL%' and state<>'RUNNING') loop
+      dbms_scheduler.enable(i.job_name);
+      dbms_scheduler.run_job(i.job_name, false);
+      dbms_output.put_line('starting scheduler job ' || i.job_name);
+      log_message('start_rt_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
+    end loop;
+exception
+    when others then
+        log_message('start_rt_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
+end;
+
+procedure start_collecting_jobs is
+begin
+    start_rt_collecting_jobs;
+    start_snap_collecting_jobs;
+exception
+    when others then
+        log_message('start_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
 
 procedure watchdog is
 i number;
 begin
-  select count(*) into i from user_scheduler_jobs where JOB_NAME like 'SASH_PKG_COLLECT%' and state <> 'RUNNING';
+  select count(*) into i from user_scheduler_jobs where JOB_NAME like 'SASH_PKG_COLLECT%' and state = 'SCHEDULED';
   if ( i != 0 ) then
-      log_message('watchdog','Trying to restart collection jobs','I');
-      start_collecting_jobs;
+      log_message('watchdog','Trying to restart real time collection jobs','I');
+      start_rt_collecting_jobs;
   end if;
 exception
     when others then

@@ -47,7 +47,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
           FUNCTION get_dbid (v_dblink varchar2) return number ;
           FUNCTION get_version (v_dblink varchar2) return varchar2 ;
           PROCEDURE set_dbid ( v_dblink varchar2)  ;
-          PROCEDURE set_dbid ( dbid number)  ;
+          PROCEDURE set_dbid ( v_dbid number)  ;
           procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
           PROCEDURE get_metrics(v_dblink varchar2) ;
           PROCEDURE collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;

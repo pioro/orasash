@@ -33,6 +33,7 @@ spool sash_tables.log
 Prompt Create sequence
 
 create sequence hist_id_seq;				
+create sequence log_id_seq;				
 
 Prompt Create tables
 
@@ -155,7 +156,8 @@ create index sash_31i on sash31(sample_time,dbid) ;
 create or replace view sash as select * from sash1;
 
 create table sash_log
-   (start_time   date default sysdate,
+   (log_id       number,
+    start_time   date default sysdate,
     action       varchar2(100),
     result       char(1),
     message      varchar2(1000));
