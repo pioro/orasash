@@ -47,6 +47,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
           FUNCTION get_dbid (v_dblink varchar2) return number ;
           FUNCTION get_version (v_dblink varchar2) return varchar2 ;
           PROCEDURE set_dbid ( v_dblink varchar2)  ;
+          PROCEDURE set_dbid ( dbid number)  ;
           procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
           PROCEDURE get_metrics(v_dblink varchar2) ;
           PROCEDURE collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
@@ -163,10 +164,6 @@ end get_metrics;
 
 PROCEDURE set_dbid(v_dblink varchar2) is
    l_dbid number;
-   l_version varchar(17);
-   l_oracle_home varchar2(150);
-   l_instance_name varchar2(30);
-   l_host varchar2(30);
    cnt number;
    begin 
      execute immediate 'select dbid  from v$database@'||v_dblink into l_dbid;
@@ -180,6 +177,22 @@ PROCEDURE set_dbid(v_dblink varchar2) is
          update sash_target set dbid = l_dbid;     
      end if;
 end set_dbid;
+
+PROCEDURE set_dbid( v_dbid number) is
+   cnt number;
+   begin 
+     select count(*) into cnt from 
+         sash_target;
+     if cnt = 0 then 
+         insert into 
+            sash_target ( dbid )
+            values (v_dbid);
+     else
+         update sash_target set dbid = v_dbid;     
+     end if;
+end set_dbid;
+
+
 
 PROCEDURE get_data_files(v_dblink varchar2) is
     l_dbid number;
