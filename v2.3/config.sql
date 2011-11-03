@@ -48,7 +48,7 @@ accept DBNAME prompt "Enter database name "
 
 accept INST_NUM default 1 prompt "Enter number of instances [default 1]"
 
-SET TERMOUT ON
+SET TERMOUT OFF
 
 spool instance.sql
 select 'accept HOST' || rownum || ' prompt "Enter host name for instance number ' || rownum || ' "' from all_source where rownum <= &INST_NUM;
