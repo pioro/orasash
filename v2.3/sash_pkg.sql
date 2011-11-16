@@ -46,7 +46,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
 		  PROCEDURE get_extents(v_dblink varchar2);
           PROCEDURE get_event_names(v_dblink varchar2)  ;
 		  PROCEDURE collect_other(v_sleep number, loops number, v_dblink varchar2, vinstance number);
-          PROCEDURE collect (v_sleep number, loops number,v_dblink varchar2, vinstance number) ;
+          PROCEDURE collect_ash (v_sleep number, loops number,v_dblink varchar2, vinstance number) ;
           FUNCTION get_dbid (v_dblink varchar2) return number ;
           FUNCTION get_version (v_dblink varchar2) return varchar2 ;
           PROCEDURE set_dbid ( v_dblink varchar2)  ;
@@ -238,6 +238,7 @@ PROCEDURE get_extents(v_dblink varchar2) is
  	exception
 			when OTHERS then
 					sash_repo.log_message('GET_EXTENTS error', '','E');
+	RAISE_APPLICATION_ERROR(-20115, 'SASH get_extents error ' || SUBSTR(SQLERRM, 1 , 1000));
 end get_extents;
 
 PROCEDURE get_event_names(v_dblink varchar2) is
@@ -288,7 +289,7 @@ begin
 	close c_sashobjs;
 exception
     when others then
-        log_message('get_objs', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('get_objs', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20101, 'SASH get_objs error ' || SUBSTR(SQLERRM, 1 , 1000));    
 end get_objs;
 
@@ -343,7 +344,7 @@ begin
 	close c_sqlplans;	
 exception
     when others then
-        log_message('get_sqlplans', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('get_sqlplans', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20102, 'SASH get_sqlplans error ' || SUBSTR(SQLERRM, 1 , 1000));     
 end get_sqlplans;
 
@@ -419,7 +420,7 @@ begin
 		 where snap_id = l_hist_samp_id;
 exception
     when others then
-        log_message('get_sqlstats', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('get_sqlstats', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20103, 'SASH get_sqlstats error ' || SUBSTR(SQLERRM, 1 , 1000));    		
 end get_sqlstats;
 
@@ -460,7 +461,7 @@ PROCEDURE get_sqlids(l_dbid number) is
                         where rownum < v_sqllimit;
 exception
     when others then
-        log_message('get_sqlids', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('get_sqlids', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20104, 'SASH get_sqlids error ' || SUBSTR(SQLERRM, 1 , 1000));    		                        
 end get_sqlids;
 
@@ -478,12 +479,12 @@ begin
     execute immediate sql_stat using l_dbid, l_dbid;
 exception
     when others then
-        log_message('get_sqltxt', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('get_sqltxt', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20105, 'SASH get_sqltxt error ' || SUBSTR(SQLERRM, 1 , 1000));    		                        
 end get_sqltxt;
  
  
-PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance number) is
+PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance number) is
           sash_rec sash%rowtype;
 		  TYPE SashcurTyp IS REF CURSOR;
 		  sash_cur   SashcurTyp;		  
@@ -601,9 +602,9 @@ PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance num
             end loop;
 exception
     when others then
-        log_message('collect', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('collect', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20106, 'SASH collect error ' || SUBSTR(SQLERRM, 1 , 1000));    	            
-end collect;
+end collect_ash;
 	   
 procedure collect_io_event(v_dblink varchar2, vinstance number, v_hist_samp_id number) is
 type sash_io_system_event_type is table of sash_io_system_event%rowtype;
@@ -626,7 +627,7 @@ begin
     close sash_cur;
 exception
     when others then
-        log_message('collect_io_event', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('collect_io_event', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20107, 'SASH collect_io_event error ' || SUBSTR(SQLERRM, 1 , 1000));    	    
 end collect_io_event;
 
@@ -653,7 +654,7 @@ begin
     close sash_cur;
 exception
     when others then
-        log_message('collect_metric', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('collect_metric', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20108, 'SASH collect_metric error ' || SUBSTR(SQLERRM, 1 , 1000));      
 end collect_metric;
 
@@ -678,7 +679,7 @@ begin
     close sash_cur;
 exception
     when others then
-        log_message('collect_iostat', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('collect_iostat', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20109, 'SASH collect_iostat error ' || SUBSTR(SQLERRM, 1 , 1000));     
 end collect_iostat;
 
@@ -702,7 +703,7 @@ begin
     close sash_cur;
 exception
     when others then
-        log_message('collect_stats', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('collect_stats', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20110, 'SASH collect_stats error ' || SUBSTR(SQLERRM, 1 , 1000));        
 end collect_stats;
 

@@ -18,7 +18,7 @@ spool sash_repo.log
 prompt Crating SASH_REPO package
 
 CREATE OR REPLACE PACKAGE sash_repo AS
-    PROCEDURE purge;
+    PROCEDURE purge_tables;
     procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0);
     PROCEDURE setup_jobs;
     PROCEDURE stop_collecting_jobs;
@@ -59,7 +59,7 @@ end;
 -- m - change table every minute with 30 min retention - sash1 to sash24 - not implemented now in jobs 
 -- purge job is calling this function and it has to have proper schedule
 
-procedure purge is
+procedure purge_tables is
     l_text  varchar2(4000);
     l_day   number;
     rtype   varchar2(1);
@@ -95,7 +95,7 @@ exception
     when others then
         log_message('PURGE PARTITION', 'l_text value ' || l_text || ' rtype value ' || rtype || 'SQLERR' || SUBSTR(SQLERRM, 1 , 900),'E');
         RAISE_APPLICATION_ERROR(-20010,'SASH purge error ' || SUBSTR(SQLERRM, 1 , 1000));
-end purge;
+end purge_tables;
 
 -- procedure set_retention 
 -- setting a sash retention
@@ -150,7 +150,7 @@ begin
         end if;
         dbms_scheduler.create_job(job_name => 'sash_repo_purge',
                                   job_type => 'plsql_block',
-                                  job_action => 'sash_repo.purge;',
+                                  job_action => 'sash_repo.purge_tables;',
                                   start_date => v_nextdate,
                                   repeat_interval => v_interval,
                                   enabled=>true);
@@ -188,7 +188,7 @@ begin
     v_startmin := v_getall * 60;
     for i in (select db_link, inst_num, dbname from sash_targets) loop
     
-        vwhat:='begin sash_pkg.collect(1,3600,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
+        vwhat:='begin sash_pkg.collect_ash(1,3600,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || i.dbname || i.inst_num,
                                 job_type => 'PLSQL_BLOCK',
                                 job_action => vwhat,
