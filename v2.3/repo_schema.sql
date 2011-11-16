@@ -12,6 +12,11 @@
 --               new table, sequence and columns for better history clean up - T: sash_hist_sample, S: hist_id_seq C:hist_sample_id
 --               new table - sash_extents to keep extentes from target database
 -- v2.3 Changes: new fields in SASH table
+--               new installation script
+--               changes in v$active_session_istory view
+--               new tables to keep metrics history
+--               new version of sash_sqlstats
+
 
 set term off
 spool exit.sql
@@ -162,11 +167,11 @@ create table sash_log
     result       char(1),
     message      varchar2(1000));
 	
+create or replace public synonym sash_log for sash_log;
+
 create global temporary table sash_hour_sqlid (sql_id varchar2(13), SQL_PLAN_HASH_VALUE number) on commit preserve rows;			
 	
- create or replace public synonym sash_log for sash_log;
-	
- create table sash_stats
+create table sash_stats
 	(
 	  dbid        number,
 	  statistic#  number,
@@ -226,7 +231,7 @@ create index sash_hist_sample_i1 on sash_hist_sample (dbid, instance_number, his
       filter_predicates varchar2(4000),
       dbid number);
 	  
- create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value, dbid);			  
+create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value, dbid);			  
  
 create table sash_params(
       dbid number, 
@@ -270,7 +275,6 @@ create table sash_sesstat
 		session_serial#  number,
 		statistic#       number,
 		value            number);
-
 		
 create table sash_sqlids
     ( dbid number,
@@ -374,36 +378,7 @@ create table sash_sqlstats (
 create index sash_sqlstats_i1 on sash_sqlstats (snap_id);
 
 create index sash_sqlstats_i2 on sash_sqlstats (sql_id, plan_hash_value);
-
-       
-create table sash_sqlstats_old( 
-      dbid number, 
-      hist_sample_id number, 
-	  inst_id number,			  
-      address raw(8), 
-      sql_id varchar2(13),
-	  plan_hash_value number,
-      child_number number,
-      executions number, 
-      elapsed_time number, 
-      disk_reads number, 
-      buffer_gets number, 
-      cpu_time number, 
-      fetches number, 
-      rows_processed number,
-      executions_delta number, 
-      elapsed_time_delta number, 
-      disk_reads_delta number, 
-      buffer_gets_delta number, 
-      cpu_time_delta number, 
-      fetches_delta number, 
-      rows_processed_delta number
-	  ); 
-	  
-create index sash_sqlstats_old_i1 on sash_sqlstats_old  (hist_sample_id);
-
-create index sash_sqlstats_old_i2 on sash_sqlstats_old  (sql_id, plan_hash_value);
-	  
+ 
 create table sash_objs(
       dbid number,  
       object_id number, 
@@ -584,8 +559,8 @@ as
 
 create or replace view v$active_session_history as
        select
-         ash.dbid           ,
-		 ash.inst_id		,
+         ash.dbid            ,
+		 ash.inst_id		 ,
          ash.sample_time     ,
          ash.session_id      ,
          ash.session_state   ,
@@ -595,7 +570,7 @@ create or replace view v$active_session_history as
          ash.sql_id          ,
          ash.sql_plan_hash_value  ,
          ash.sql_opcode      ,
-         decode(bitand(ash.session_type,19),17,'BACKGROUND',1,'FOREGROUND',2,'RECURSIVE','?') session_type, --9i
+         decode(bitand(ash.session_type,19),17,'BACKGROUND',1,'FOREGROUND',2,'RECURSIVE','?') session_type, 
          decode(session_state,'WAITING',ash.event#,null) event#,
 		 decode(session_state,'WAITING',ash.event#,null) event_id,
          ash.seq#            ,
@@ -661,7 +636,7 @@ create or replace view v$active_session_history as
     where
          e.event# = ash.event# and
          e.dbid = ( select dbid from sash_target) and
-         ash.dbid = ( select dbid from sash_target) ;
+         ash.dbid = e.dbid ;
 
 create or replace view dba_hist_active_sess_history 
      as 
@@ -670,7 +645,7 @@ create or replace view dba_hist_active_sess_history
 
 create or replace view v$sqltext_with_newlines as 
      select 
-            DBID         ,
+            DBID  ,
             sql_id,    
             SQL_TEXT     
      from  

@@ -15,6 +15,9 @@
 --				 - sql information improved
 --				 - RAC support
 --               - multi db support
+-- v2.3 Changes  - full RAC and multi DB support
+--               - gathering metrics
+--               - logging
 
 spool sash_pkg.log
 prompt Crating SASH_PKG package
@@ -63,16 +66,21 @@ CREATE OR REPLACE PACKAGE BODY sash_pkg AS
 
 procedure configure_db(v_dblink varchar2) is 
   begin
-   dbms_output.put_line( 'get_event');
+   sash_repo.log_message('configure_db', 'get_event_names' ,'I');
    sash_pkg.get_event_names(v_dblink);
-   dbms_output.put_line( 'get_users');
+   sash_repo.log_message('configure_db', 'get_users' ,'I');
    sash_pkg.get_users(v_dblink);
-   dbms_output.put_line( 'get_params');
+   sash_repo.log_message('configure_db', 'get_params' ,'I');
    sash_pkg.get_params(v_dblink);
-   dbms_output.put_line( 'get_data_files');
+   sash_repo.log_message('configure_db', 'get_data_files' ,'I');
    sash_pkg.get_data_files(v_dblink);
+   sash_repo.log_message('configure_db', 'get_metrics' ,'I');
    sash_pkg.get_metrics(v_dblink);
    commit; 
+exception
+    when others then
+        sash_repo.log_message('configure_db', SUBSTR(SQLERRM, 1 , 1000) ,'E');
+        RAISE_APPLICATION_ERROR(-20100,'SASH configure_db error ' || SUBSTR(SQLERRM, 1 , 1000));   
 end configure_db;
  
 
@@ -278,6 +286,10 @@ begin
 	forall i in 1 .. sash_objsrec.count 
 			 insert into sash_objs values sash_objsrec(i);          
 	close c_sashobjs;
+exception
+    when others then
+        log_message('get_objs', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20101, 'SASH get_objs error ' || SUBSTR(SQLERRM, 1 , 1000));    
 end get_objs;
 
 PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number,  v_dblink varchar2) is
@@ -328,7 +340,11 @@ begin
 	fetch c_sqlplans bulk collect into sash_sqlrec;
 	forall i in 1 .. sash_sqlrec.count 
 			 insert into sash_sqlplans values sash_sqlrec(i);          
-	close c_sqlplans;		   
+	close c_sqlplans;	
+exception
+    when others then
+        log_message('get_sqlplans', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20102, 'SASH get_sqlplans error ' || SUBSTR(SQLERRM, 1 , 1000));     
 end get_sqlplans;
 
 PROCEDURE get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number) is
@@ -342,16 +358,6 @@ l_ver varchar2(8);
 l_oldsnap number;
 
 begin
-/*
-	begin
-		select to_number(value) into v_lastall from sash_configuration where param='STATFREQ';
-		dbms_output.put_line('v_lastall ' || v_lastall);
-		exception when NO_DATA_FOUND then 
-			v_lastall:=1;
-	end;
-*/
-
-
         begin
 	        select max(snap_id) into l_oldsnap from sash_sqlstats m where m.dbid = l_dbid and m.instance_number = v_inst_num; 
                 exception when NO_DATA_FOUND then
@@ -411,7 +417,10 @@ begin
          from sash_sqlstats old where 
 		 old.snap_id = l_oldsnap and old.sql_id = s.sql_id and old.plan_hash_value = s.plan_hash_value and old.dbid = s.dbid and old.instance_number = s.instance_number)
 		 where snap_id = l_hist_samp_id;
-		
+exception
+    when others then
+        log_message('get_sqlstats', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20103, 'SASH get_sqlstats error ' || SUBSTR(SQLERRM, 1 , 1000));    		
 end get_sqlstats;
 
 
@@ -449,6 +458,10 @@ PROCEDURE get_sqlids(l_dbid number) is
                           group by sql_id, sql_plan_hash_value
                           order by cnt desc )
                         where rownum < v_sqllimit;
+exception
+    when others then
+        log_message('get_sqlids', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20104, 'SASH get_sqlids error ' || SUBSTR(SQLERRM, 1 , 1000));    		                        
 end get_sqlids;
 
 
@@ -463,6 +476,10 @@ begin
                 (select sql_id from sash_hour_sqlid t 
                  where not exists (select 1 from sash_sqltxt psql where t.sql_id = psql.sql_id and psql.dbid = :2))';
     execute immediate sql_stat using l_dbid, l_dbid;
+exception
+    when others then
+        log_message('get_sqltxt', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20105, 'SASH get_sqltxt error ' || SUBSTR(SQLERRM, 1 , 1000));    		                        
 end get_sqltxt;
  
  
@@ -582,7 +599,11 @@ PROCEDURE collect(v_sleep number, loops number, v_dblink varchar2, vinstance num
               commit;
               dbms_lock.sleep(v_sleep);
             end loop;
-       end collect;
+exception
+    when others then
+        log_message('collect', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20106, 'SASH collect error ' || SUBSTR(SQLERRM, 1 , 1000));    	            
+end collect;
 	   
 procedure collect_io_event(v_dblink varchar2, vinstance number, v_hist_samp_id number) is
 type sash_io_system_event_type is table of sash_io_system_event%rowtype;
@@ -603,6 +624,10 @@ begin
         insert into sash_io_system_event values io_event_rec(i);
     commit;
     close sash_cur;
+exception
+    when others then
+        log_message('collect_io_event', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20107, 'SASH collect_io_event error ' || SUBSTR(SQLERRM, 1 , 1000));    	    
 end collect_io_event;
 
 procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
@@ -626,6 +651,10 @@ begin
         insert into sash_sysmetric_history values session_rec(i);
     commit;
     close sash_cur;
+exception
+    when others then
+        log_message('collect_metric', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20108, 'SASH collect_metric error ' || SUBSTR(SQLERRM, 1 , 1000));      
 end collect_metric;
 
 
@@ -647,6 +676,10 @@ begin
         insert into sash_iofuncstats values session_rec(i);
     commit;
     close sash_cur;
+exception
+    when others then
+        log_message('collect_iostat', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20109, 'SASH collect_iostat error ' || SUBSTR(SQLERRM, 1 , 1000));     
 end collect_iostat;
 
 
@@ -667,6 +700,10 @@ begin
         insert into sash_instance_stats values session_rec(i);
     commit;
     close sash_cur;
+exception
+    when others then
+        log_message('collect_stats', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20110, 'SASH collect_stats error ' || SUBSTR(SQLERRM, 1 , 1000));        
 end collect_stats;
 
 procedure collect_other(v_sleep number, loops number, v_dblink varchar2, vinstance number) is

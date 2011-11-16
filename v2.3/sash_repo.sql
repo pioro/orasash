@@ -8,6 +8,10 @@
 -- (c) Marcin Przepiorowski 2010
 -- v2.1 Changes: New procedures for stopping and starting jobs, purge procedure extended
 -- v2.2 Changes: todo - add purging of historical data
+-- v2.3 Changes: dbms_scheduler used to control repository jobs
+--               job watchdog added
+--               more logging added
+--               support for RAC and multiple databases
 
 
 spool sash_repo.log
@@ -155,7 +159,7 @@ begin
       end;
     else
       log_message('create_repository_jobs','repository job exist - remove first', 'I');
-      RAISE_APPLICATION_ERROR(-20130,'sash create_repository_jobs - repository job exist - remove first');
+      RAISE_APPLICATION_ERROR(-20030,'sash create_repository_jobs - repository job exist - remove first');
     end if;
 exception when others then
   log_message('create_repository_jobs', SUBSTR(SQLERRM, 1 , 1000) ,'E');
@@ -215,7 +219,7 @@ begin
 
     exception when others then
             log_message('create_collection_jobs', SUBSTR(SQLERRM, 1 , 1000) ,'E');
-            RAISE_APPLICATION_ERROR(-20050,'SASH  create_collection_jobs errored ' || SUBSTR(SQLERRM, 1 , 1000));	
+            RAISE_APPLICATION_ERROR(-20031,'SASH  create_collection_jobs errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;     
 
 
@@ -231,7 +235,7 @@ begin
     exception
         when others then
             log_message('stop_and_remove_rep_jobs', SUBSTR(SQLERRM, 1 , 1000) ,'E');
-            RAISE_APPLICATION_ERROR(-20060,'SASH  stop_and_remove_rep_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+            RAISE_APPLICATION_ERROR(-20032,'SASH  stop_and_remove_rep_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
 
 
@@ -247,7 +251,7 @@ begin
     exception
         when others then
             log_message('remove_collection_jobs', SUBSTR(SQLERRM, 1 , 1000) ,'E');
-            RAISE_APPLICATION_ERROR(-20070,'SASH  remove_collection_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+            RAISE_APPLICATION_ERROR(-20033,'SASH  remove_collection_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;  
 
 -- procedure setup_jobs
@@ -263,6 +267,9 @@ begin
     create_repository_jobs;
 end;
 
+-- procedure stop_collecting_jobs
+-- Stop any running collection jobs
+
 procedure stop_collecting_jobs is
 begin
     for i in (select job_name, state from user_scheduler_jobs where job_name like '%SASH_PKG%') loop
@@ -277,9 +284,11 @@ begin
     exception
         when others then
             log_message('stop_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000) ,'E');
-            RAISE_APPLICATION_ERROR(-20060,'SASH  stop_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
+            RAISE_APPLICATION_ERROR(-20034,'SASH  stop_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
 end;
 
+-- procedure start_snap_collecting_jobs
+-- Start snapshot jobs - running every STATFREQ
 
 procedure start_snap_collecting_jobs is
 begin
@@ -292,10 +301,11 @@ begin
 exception
     when others then
         log_message('start_snap_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+        RAISE_APPLICATION_ERROR(-20035,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
 
-
+-- procedure start_rt_collecting_jobs
+-- Start real time jobs - collecting ASH data
 
 procedure start_rt_collecting_jobs is
 begin
@@ -308,8 +318,11 @@ begin
 exception
     when others then
         log_message('start_rt_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
+        RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
 end;
+
+-- procedure start_collecting_jobs
+-- Starting both real time and snapshot jobs 
 
 procedure start_collecting_jobs is
 begin
@@ -318,8 +331,12 @@ begin
 exception
     when others then
         log_message('start_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20070,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+        RAISE_APPLICATION_ERROR(-20037,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
+
+-- procedure watchdog
+-- Checking status of real time (ASH) jobs and trying to restart SCHEDULED but not running jobs
+-- It doesn't run DISABLED jobs
 
 procedure watchdog is
 i number;
@@ -332,8 +349,20 @@ begin
 exception
     when others then
         log_message('watchdog', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20080,'SASH watchdog error ' || SUBSTR(SQLERRM, 1 , 1000));
+        RAISE_APPLICATION_ERROR(-20040,'SASH watchdog error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
+
+-- procedure add_db
+-- Adding new instance and/or database to repository (sash_targets) and creating a database link to new database 
+-- using following naming convencion for database link name - v_db_name || v_inst_num
+-- v_host - target host name
+-- v_port - target listener port
+-- v_sash_pass - target SASH user password
+-- v_db_name - target database name
+-- v_sid - target SID
+-- v_inst_num - target instance number
+-- v_version - target database version (todo - add default check)
+-- v_cpu_count - target number of CPU (todo - propagete this value from sash_params)
 
 procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0) is
 v_dblink varchar2(30);
