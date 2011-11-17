@@ -677,7 +677,7 @@ create or replace view v$sql_plan as SELECT null address, null hash_value, sql_i
 	   null projection, null time, null qblock_name, null remarks
 	   FROM sash_sqlplans;	 
 
-create or replace view v$sql as select sql_id, 100 command_type, sql_text from sash_sqltxt where  dbid = ( select dbid from sash_target);	 
+create or replace view v$sql as select sql_id, 100 command_type, to_char(sql_text) sql_text from sash_sqltxt where  dbid = ( select dbid from sash_target);	 
 
 create or replace view v$parameter as select * from sash_params
           where dbid = ( select dbid from sash_target);
