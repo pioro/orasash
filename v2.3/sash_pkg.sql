@@ -491,8 +491,11 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
           l_dbid number;
           cur_sashseq   number := 0;
 		  sql_stat varchar2(4000);
-          
+          no_host EXCEPTION;
+	  PRAGMA EXCEPTION_INIT(no_host, -12543);          
+
           begin
+
             l_dbid:=get_dbid(v_dblink);
 			sql_stat := 'select a.*, 1 sample_id, null terminal, null inst_id from sys.sashnow@' || v_dblink || ' a';
             for i in 1..loops loop
@@ -600,9 +603,11 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
               commit;
               dbms_lock.sleep(v_sleep);
             end loop;
-exception
+exception 
+    when no_host then
+	sash_repo.log_message('collect_ash', 'can access database ' || v_dblink  || SUBSTR(SQLERRM, 1 , 800),'W');
     when others then
-        sash_repo.log_message('collect', SUBSTR(SQLERRM, 1 , 1000),'E');
+        sash_repo.log_message('collect_ash', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20106, 'SASH collect error ' || SUBSTR(SQLERRM, 1 , 1000));    	            
 end collect_ash;
 	   

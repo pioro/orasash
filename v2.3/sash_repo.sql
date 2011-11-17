@@ -29,6 +29,8 @@ CREATE OR REPLACE PACKAGE sash_repo AS
     procedure watchdog;
     PROCEDURE set_retention(rtype varchar2);
     procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
+    procedure add_instance_job (v_dbname varchar2, v_inst_num number, v_db_link varchar2);
+    procedure remove_instance_job (v_dbname varchar2, v_inst_num number);
 END sash_repo;
 /
 show errors
@@ -187,7 +189,9 @@ begin
 
     v_startmin := v_getall * 60;
     for i in (select db_link, inst_num, dbname from sash_targets) loop
-    
+        
+        add_instance_job( i.dbname, i.inst_num, i.db_link); 
+        /*                  
         vwhat:='begin sash_pkg.collect_ash(1,3600,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || i.dbname || i.inst_num,
                                 job_type => 'PLSQL_BLOCK',
@@ -196,7 +200,6 @@ begin
                                 repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
                                 enabled=>true);
         log_message('create_collection_jobs','adding scheduler job sash_pkg_collect_' || i.dbname || i.inst_num,'I');
-        /*                  
         vwhat:='begin sash_pkg.collect_other(60,60,'''|| i.db_link || ''', '|| i.inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_collect_other_' || i.inst_num,
                                 job_type => 'PLSQL_BLOCK',
@@ -204,7 +207,6 @@ begin
                                 start_date => sysdate,
                                 repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
                                 enabled => true);
-        */
         vwhat:='begin sash_pkg.get_all('''|| i.db_link || ''',' || i.inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || i.dbname || i.inst_num,
                               job_type=>'PLSQL_BLOCK',
@@ -213,6 +215,7 @@ begin
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
         log_message('create_collection_jobs','adding scheduler job sash_pkg_get_all_' || i.dbname || i.inst_num,'I');
+        */
                         
     end loop;
     commit;
@@ -389,6 +392,49 @@ begin
     else 
             log_message('add_db', 'Database ' || v_db_name || ' instance ' || v_inst_num || ' already added','W');	
     end if;
+end;
+
+procedure remove_instance_job (v_dbname varchar2, v_inst_num number)  is
+begin
+ dbms_scheduler.drop_job(job_name => 'sash_pkg_collect_' || v_dbname || v_inst_num);
+ log_message('remove_instance_job','removing scheduler job sash_pkg_collect_' || v_dbname || v_inst_num,'I');
+ dbms_scheduler.drop_job(job_name => 'sash_pkg_get_all_' || v_dbname || v_inst_num);
+ log_message('remove_instance_job','removing scheduler job sash_pkg_get_all__' || v_dbname || v_inst_num,'I');
+end;
+
+procedure add_instance_job (v_dbname varchar2, v_inst_num number, v_db_link varchar2)  is
+vwhat varchar2(4000);
+v_getall number;
+v_startmin number;
+
+begin
+    begin
+        select to_number(value) into v_getall from sash_configuration where param='STATFREQ';
+        dbms_output.put_line('v_getall ' || v_getall);
+        exception when NO_DATA_FOUND then 
+            v_getall:=15;
+    end;
+
+        vwhat:='begin sash_pkg.collect(1,3600,'''|| v_db_link || ''', '|| v_inst_num || '); end;';
+        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || v_dbname || v_inst_num,
+                                job_type => 'PLSQL_BLOCK',
+                                job_action => vwhat,
+                                start_date => sysdate,
+                                repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
+                                enabled=>true);
+        log_message('add_instance_job','adding scheduler job sash_pkg_collect_' || v_dbname || v_inst_num,'I');
+        
+        vwhat:='begin sash_pkg.get_all('''|| v_db_link || ''',' || v_inst_num || '); end;';
+        dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || v_dbname || v_inst_num,
+                              job_type=>'PLSQL_BLOCK',
+                              job_action=> vwhat,
+                              start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
+                              repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
+                              enabled=>true);
+        log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_dbname || v_inst_num,'I');
+    exception when others then
+            log_message('add_instance_job', SUBSTR(SQLERRM, 1 , 1000) ,'E');
+            RAISE_APPLICATION_ERROR(-20031,'SASH add_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
 
 end sash_repo;
