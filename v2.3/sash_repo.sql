@@ -18,16 +18,16 @@ spool sash_repo.log
 prompt Crating SASH_REPO package
 
 CREATE OR REPLACE PACKAGE sash_repo AS
-    PROCEDURE purge_tables;
+    procedure purge_tables;
     procedure add_db(v_host varchar2, v_port number, v_sash_pass varchar2, v_db_name varchar2, v_sid varchar2, v_inst_num number, v_version varchar2 default '', v_cpu_count number default 0);
-    PROCEDURE setup_jobs;
-    PROCEDURE stop_collecting_jobs;
-    PROCEDURE start_collecting_jobs;
+    procedure setup_jobs;
+    procedure stop_collecting_jobs;
+    procedure start_collecting_jobs;
     procedure create_repository_jobs;
     procedure create_collection_jobs;
     procedure stop_and_remove_rep_jobs;
     procedure watchdog;
-    PROCEDURE set_retention(rtype varchar2);
+    procedure set_retention(rtype varchar2);
     procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
     procedure add_instance_job (v_dbname varchar2, v_inst_num number, v_db_link varchar2);
     procedure remove_instance_job (v_dbname varchar2, v_inst_num number);
