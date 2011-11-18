@@ -1,0 +1,70 @@
+-- Revision number $Rev$
+-- Modification date $Date$
+
+Installation steps
+
+Target Database as user SYS
+
+1. create user and view on target - targ_1_userview.sql 
+
+Repository Database
+
+As user SYS
+
+1. create a sash user - using following script - repo_0_user.sql - as user SYS on repository database
+
+2. add sys procedure to kill jobs - repo_1_sys_procedure.sql - as user SYS on repository database
+ 
+As user SASH
+ 
+1. create repository - run as SASH user - repo_1_tables.sql
+
+2. create repository management package - repo_2_pkg.sql 
+
+3. create a sash packages on repository database - repo_4_packages.sql
+
+4. create sash version of dbms_xplan to see plans from sash repository - repo_6_xplan.sql
+
+
+Configuration steps
+
+1. Login as user SASH on repository database 
+
+2. Add database(s) instance(s) to repository using following package
+
+exec sash_repo.add_db('svr1-vip', <listener_port>, <target password for sash user>, '<dbname>', '<instance_name>', <instance_number>, '<db_version>', <number of cores>);
+select db_link from sash.sash_targets;
+exec sash_pkg.configure_db('<db_link>');
+exec sash_pkg.set_dbid('<db_link>');
+
+ex. one instance
+exec sash_repo.add_db('svr1', 1521, 'sash', 'test', 'test1', 1, '11.2.0.2', 8);
+exec sash_pkg.configure_db('test1');
+exec sash_pkg.set_dbid('test1');
+
+ex. RAC
+exec sash_repo.add_db('svr1-vip', 1521, 'sash', 'test', 'test1', 1, '11.2.0.2', 8);
+exec sash_repo.add_db('svr2-vip', 1521, 'sash', 'test', 'test2', 2, '11.2.0.2', 8);
+exec sash_pkg.configure_db('test1');
+exec sash_pkg.set_dbid('test1');
+
+3. setup jobs 
+
+exec sash_repo.setup_jobs
+
+
+Job maintenace:
+
+exec sash_repo.start_collecting_jobs; - to start collecting and puring jobs
+exec sash_repo.stop_collecting_jobs;  - to stop collecting and puring jobs
+
+Retention:
+
+exec sash_repo.set_retention('<retention>');
+
+where <retention> is one of:
+- d - last week
+- w - last month
+- h - last 24 h
+- m - last 30 minutes
+
