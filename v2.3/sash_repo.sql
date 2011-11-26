@@ -415,7 +415,7 @@ begin
             v_getall:=15;
     end;
 
-        vwhat:='begin sash_pkg.collect(1,3600,'''|| v_db_link || ''', '|| v_inst_num || '); end;';
+        vwhat:='begin sash_pkg.collect_ash(1,3600,'''|| v_db_link || ''', '|| v_inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || v_dbname || v_inst_num,
                                 job_type => 'PLSQL_BLOCK',
                                 job_action => vwhat,

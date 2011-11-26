@@ -41,10 +41,11 @@ set term on
 
 prompt "------------------------------------------------------------------------------------"
 prompt  Instalation completed. Starting SASH configuration process                         
+prompt  Press Control-C if you do not want to configure target database at that time.
 prompt "------------------------------------------------------------------------------------"
 
 
-accept DBNAME prompt "Enter database name " 
+accept DBNAME prompt "Enter target database name " 
 
 accept INST_NUM default 1 prompt "Enter number of instances [default 1]"
 
@@ -70,7 +71,7 @@ select 'exec sash_pkg.configure_db(''&DBNAME' || 1 || ''');' from dual;
 select 'exec sash_pkg.set_dbid(''&DBNAME' || 1 || ''');' from dual;
 select 'exec sash_repo.setup_jobs' from dual;
 select 'exec sash_repo.start_collecting_jobs' from dual;
-select 'exec sash_repo.purge' from dual;
+select 'exec sash_repo.purge_tables' from dual;
 spool off
 set term on
 

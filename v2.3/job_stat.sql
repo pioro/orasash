@@ -1,3 +1,4 @@
+set linesize 200
 col LAST_START_DATE format a35
 col NEXT_RUN_DATE format a35
 
