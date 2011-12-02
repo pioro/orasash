@@ -385,7 +385,7 @@ begin
             log_message('add_db', 'no db link - moving forward ' || v_dblink  ,'W');
     end;
     execute immediate 'create database link ' || v_dblink || ' connect to sash identified by ' || v_sash_pass || ' using ''' || v_dblink_target || '''';
-    execute immediate 'select dbid from sys.v$database@' || v_dblink into v_dbid;
+    execute immediate 'select dbid from sys.v_$database@' || v_dblink into v_dbid;
     select count(*) into v_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num;
     if v_check = 0 then 
         insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, v_version, v_cpu_count);
@@ -414,7 +414,7 @@ begin
         exception when NO_DATA_FOUND then 
             v_getall:=15;
     end;
-
+        v_startmin := v_getall * 60;
         vwhat:='begin sash_pkg.collect_ash(1,3600,'''|| v_db_link || ''', '|| v_inst_num || '); end;';
         dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || v_dbname || v_inst_num,
                                 job_type => 'PLSQL_BLOCK',
