@@ -32,7 +32,6 @@ prompt "SASH default tablespace is: " &SASH_TS
 create user sash identified by &SASH_PASS default tablespace &SASH_TS temporary tablespace temp;
 -- sash user grants 
 grant create session to sash;				 
-grant select on sys.sashnow to sash;
 grant select on v_$database to sash;
 grant select on dba_users to sash;
 grant select on v_$sql to sash;
@@ -116,4 +115,6 @@ where
         (  select event# from v$event_name where wait_class='Idle' )
     );
 		
+grant select on sys.sashnow to sash;
+
 exit;	
