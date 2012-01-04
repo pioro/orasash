@@ -363,20 +363,7 @@ begin
 
 
         l_ver:=substr(sash_pkg.get_version(v_dblink),0,4); 
-
-        if (l_ver = '10.2') then
-        sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
-                   sql_id,  plan_hash_value, parse_calls, disk_reads,
-                          direct_writes, buffer_gets, rows_processed, serializable_aborts,
-                       fetches, executions, end_of_fetch_count, loads, version_count,
-                       invalidations,  px_servers_executions,  cpu_time, elapsed_time,
-                       avg_hard_parse_time, application_wait_time, concurrency_wait_time,
-                       cluster_wait_time, user_io_wait_time, plsql_exec_time, java_exec_time,
-                       sorts, sharable_mem, total_sharable_mem, 0, 0, 0, 0,0,0,0,0,0 ,
-                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-                       from sys.v_$sqlstats@' || v_dblink || ' sql
-                       where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
-        elsif (l_ver = '11.1') then
+    if (l_ver = '11.1') then
         sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
                    sql_id,  plan_hash_value, parse_calls, disk_reads,
                           direct_writes, buffer_gets, rows_processed, serializable_aborts,
