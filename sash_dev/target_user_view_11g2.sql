@@ -62,6 +62,7 @@ select
     s.indx          "SESSION_ID",
 	decode(s.ksusetim, 0,'WAITING','ON CPU') "SESSION_STATE",
     s.ksuseser      "SESSION_SERIAL#",
+    s.ksuseunm      "OSUSER",
 	s.ksuseflg      "SESSION_TYPE"  ,
     s.ksuudlui      "USER_ID",
 	s.ksuudoct      "COMMAND",	
