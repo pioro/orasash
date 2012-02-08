@@ -18,6 +18,7 @@
 -- v2.3 Changes  - full RAC and multi DB support
 --               - gathering metrics
 --               - logging
+--v2.3 Changes   - Add new procedure get_obj_plus - AlbertoFro
 
 spool sash_pkg.log
 prompt Crating SASH_PKG package
