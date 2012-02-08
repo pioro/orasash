@@ -35,6 +35,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure get_objs(l_dbid number, v_dblink varchar2)  ;
     procedure get_latch(v_dblink varchar2) ; 
     procedure get_users(v_dblink varchar2)  ;
+    procedure get_obj_plus(v_dblink varchar2)  ;
     procedure get_params(v_dblink varchar2)  ;
     procedure get_sqltxt(l_dbid number, v_dblink varchar2) ;
     procedure get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number)  ;
@@ -112,6 +113,17 @@ PROCEDURE get_latch(v_dblink varchar2) is
     execute immediate 'insert into sash_latch (dbid, latch#, name) select ' || l_dbid || ',latch#, name from sys.v_$latch@'||v_dblink;
     commit;
 end get_latch; 
+
+PROCEDURE get_obj_plus(v_dblink varchar2) is
+ l_dbid number;
+ begin
+    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+    execute immediate 'insert into sash_obj_plus (dbid,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,LANALYZED_T,lanalyzed_i,clustering,partitioned) select ' || l_dbid || ',table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,LANALYZED_T,lanalyzed_i,clustering,partitioned from sys.sashit_cf@'||v_dblink;
+     exception
+        when dup_val_on_index then
+            sash_repo.log_message('get_obj_plus', 'Already configured ?','W');
+end get_obj_plus;
+
  
 procedure get_stats(v_dblink varchar2) is
  l_dbid number;
@@ -765,6 +777,7 @@ end collect_other;
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
           get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
           get_objs(l_dbid, v_dblink);
+          get_obj_plus(v_dblink);
           collect_metric(l_hist_samp_id, v_dblink , v_inst_num );
           collect_io_event(v_dblink, v_inst_num,l_hist_samp_id);
           if (l_ver = '11') then
