@@ -52,6 +52,7 @@ grant select on v_$system_event to sash;
 grant select on v_$sysmetric_history to sash;
 grant select on v_$iostat_function to sash;
 grant select on v_$sqlstats to sash;
+grant select on dba_tables to sash;
 
 prompt "SASHNOW view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
 create or replace view sashnow as 
@@ -116,4 +117,36 @@ where
     );
 			
 grant select on sys.sashnow to sash;
+
+
+CREATE OR REPLACE FORCE VIEW "SYS"."SASHIT_CF" ("TABLE_NAME", "INDEX_NAME", "TYPE_INDEX", "LBLOCKS", "DKEYS", "CF", "STATUS", "NROWS", "BLOCKS", "AVGROW_L", "LANALYZED_T", "LANALYZED_I", "CLUSTERING", "PARTITIONED")
+AS
+  SELECT a.table_name,
+    b.index_name,
+    b.uniqueness        AS uniqueness_i,
+    b.leaf_blocks       AS leaf_blocks_i,
+    b.distinct_keys     AS distinct_keys_i,
+    b.clustering_factor AS clustering_factor_i,
+    b.status            AS status_i,
+    a.num_rows          AS num_rows_t,
+    a.blocks            AS blocks_t ,
+    a.avg_row_len       AS avg_row_len_t ,
+    (a.last_analyzed)   AS last_analyzed_t,
+    (b.last_analyzed)   AS last_analyzed_i ,
+    CASE
+      WHEN b.clustering_factor=0
+      OR a.blocks             =0
+      THEN 0
+      ELSE (b.clustering_factor/a.blocks)
+    END AS clustering,
+    a.partitioned
+  FROM dba_tables a,
+    dba_indexes b
+  WHERE a.owner    ='CAGDBADMIN'
+  AND b.owner      ='CAGDBADMIN'
+  AND a.table_name = b.table_name
+  ORDER BY a.table_name;
+
+grant select on sys.SASHIT_CF to sash;
+
 exit;
