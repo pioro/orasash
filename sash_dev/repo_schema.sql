@@ -17,6 +17,7 @@
 --               new tables to keep metrics history
 --               new version of sash_sqlstats
 --v2.3 Changes:  new field in SASH table OSUSER -- AlbertoFro
+--		 new table SASH_OBJ_PLUS -- AlbertoFro
 
 
 set term off
@@ -162,6 +163,27 @@ create index sash_31i on sash31(sample_time,dbid) ;
 
 create or replace view sash as select * from sash1;
 create or replace view sash_all as select * from sash1;
+
+
+create table sash_obj_plus (
+DBID	NUMBER,
+table_name	varchar2(30),
+index_name	varchar2(30),
+type_index	varchar2(9),
+lblocks	number,
+DKEYS	NUMBER,
+cf	number,
+status	varchar2(8),
+NROWS	NUMBER,
+blocks	number,
+avgrow_l	number,
+LANALYZED_T	DATE,
+lanalyzed_i	date,
+clustering	number,
+partitioned	varchar2(3)
+);
+
+create unique index "SASH"."SASH_OBJ_PLUS_I" on "SASH"."SASH_OBJ_PLUS" ("DBID", "TABLE_NAME","INDEX_NAME") ;
 
 create table sash_log
    (log_id       number,
