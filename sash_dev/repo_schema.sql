@@ -18,6 +18,7 @@
 --               new version of sash_sqlstats
 --v2.3 Changes:  new field in SASH table OSUSER -- AlbertoFro
 --		 new table SASH_OBJ_PLUS -- AlbertoFro
+--               new field in SASH_EVENT_NAMES table event_id -- AlbertoFro
 
 
 set term off
@@ -269,7 +270,8 @@ create table sash_event_names(
       dbid number, 
       event# number, 
       wait_class varchar2(64), 
-      name varchar2(64));
+      name varchar2(64))
+      event_id number;
 
 create unique index sash_event_names_i on sash_event_names( event# , dbid );
 	  
