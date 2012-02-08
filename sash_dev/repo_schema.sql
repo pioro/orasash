@@ -16,7 +16,7 @@
 --               changes in v$active_session_istory view
 --               new tables to keep metrics history
 --               new version of sash_sqlstats
---v2.3 Changes:  new field in SASH table OSUSER
+--v2.3 Changes:  new field in SASH table OSUSER -- AlbertoFro
 
 
 set term off
