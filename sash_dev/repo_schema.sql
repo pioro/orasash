@@ -16,6 +16,7 @@
 --               changes in v$active_session_istory view
 --               new tables to keep metrics history
 --               new version of sash_sqlstats
+--v2.3 Changes:  new field in SASH table OSUSER
 
 
 set term off
@@ -50,6 +51,7 @@ create table sash1 (
                 session_id          number,
                 session_state       varchar2(20),
                 session_serial#     number,
+                OSUSER              VARCHAR2(30),
                 session_type        number,                
                 user_id             number,
                 command             number,
@@ -159,6 +161,7 @@ create index sash_30i on sash30(sample_time,dbid) ;
 create index sash_31i on sash31(sample_time,dbid) ;
 
 create or replace view sash as select * from sash1;
+create or replace view sash_all as select * from sash1;
 
 create table sash_log
    (log_id       number,
