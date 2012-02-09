@@ -19,6 +19,7 @@
 --v2.3 Changes:  new field in SASH table OSUSER -- AlbertoFro
 --		 new table SASH_OBJ_PLUS -- AlbertoFro
 --               new field in SASH_EVENT_NAMES table event_id -- AlbertoFro
+--		 new table SASH_TOP10 -- AlbertoFro
 
 
 set term off
@@ -165,6 +166,26 @@ create index sash_31i on sash31(sample_time,dbid) ;
 create or replace view sash as select * from sash1;
 create or replace view sash_all as select * from sash1;
 
+
+
+create table sash_top10 ( 
+		dbid			 number,
+                date_snap           date,
+                sql_id              varchar2(13),
+                cpu                number, 
+                user_i_o                number, 
+                system_i_o                number, 
+                administration          number,
+                other          number,
+                configuration          number,
+                application         number,
+                concurrency         number,
+                network               number,
+                total               number
+               
+);
+
+CREATE UNIQUE INDEX "SASH"."SASH_GET_TOP10_I" ON "SASH"."SASH_TOP10" ("SQL_ID", "DATE_SNAP") ;
 
 create table sash_obj_plus (
 DBID	NUMBER,
