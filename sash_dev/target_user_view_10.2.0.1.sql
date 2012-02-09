@@ -12,7 +12,7 @@
 -- v2.3 - new fields added - 11g2
 --      - checking if SYS user is used to execute 
 --      - script clean up
-
+-- v2.3 - Add new view SYS.SASHIT_CF
 
 set ver off
 set term off
@@ -143,8 +143,8 @@ AS
     a.partitioned
   FROM dba_tables a,
     dba_indexes b
-  WHERE a.owner    ='CAGDBADMIN'
-  AND b.owner      ='CAGDBADMIN'
+  WHERE a.owner    not in ('SYS','SYSTEM')
+  AND b.owner      not in ('SYS','SYSTEM')
   AND a.table_name = b.table_name
   ORDER BY a.table_name;
 
