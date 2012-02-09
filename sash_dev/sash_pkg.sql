@@ -19,6 +19,7 @@
 --               - gathering metrics
 --               - logging
 --v2.3 Changes   - Add new procedure get_obj_plus - AlbertoFro
+--               - Add new peocedure get_top10 - AlbertoFro
 --               - Add new field in get_event_name procedure - AlbertoFro
 
 spool sash_pkg.log
@@ -38,6 +39,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure get_latch(v_dblink varchar2) ; 
     procedure get_users(v_dblink varchar2)  ;
     procedure get_obj_plus(v_dblink varchar2)  ;
+    procedure get_top10(v_dblink varchar2) ;
     procedure get_params(v_dblink varchar2)  ;
     procedure get_sqltxt(l_dbid number, v_dblink varchar2) ;
     procedure get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number)  ;
@@ -126,6 +128,50 @@ PROCEDURE get_obj_plus(v_dblink varchar2) is
             sash_repo.log_message('get_obj_plus', 'Already configured ?','W');
 end get_obj_plus;
 
+
+PROCEDURE get_top10(v_dblink varchar2) is
+ l_dbid number;
+ begin
+    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+    execute immediate 'insert into sash_top10 (dbid,date_snap,sql_id,cpu,user_i_o,system_i_o,administration,other,configuration,application,concurrency,network,total) select * from (
+select * from (
+select ' || l_dbid || ', sysdate, sql_id, max(oncpu) "CPU" , max(userio) "User I/O", max(systemio) 
+"System I/O", max(adm) "Administration", max(other) "Other" , max(conf) 
+"Configuration" , max(app) "Application", max(conc) "Concurrency", max(net) "Network" , max(r) "Total"  from (
+select sql_id, 
+decode(wait_class, ''ON CPU'', wt, NULL) oncpu,
+decode(wait_class, ''User I/O'', wt, NULL) userio,
+decode(wait_class, ''System I/O'', wt, NULL) systemio,
+decode(wait_class, ''Administrative'', wt, NULL) adm,
+decode(wait_class, ''other'', wt, NULL) other,
+decode(wait_class, ''Configuration'', wt, NULL) conf,
+decode(wait_class, ''application'', wt, NULL) app,
+decode(wait_class, ''Concurrency'', wt, NULL) conc,
+decode(wait_class, ''Network'', wt, NULL) net,
+sum(wt) over (partition by sql_id) r
+from (
+select sql_id, wait_class, count(*) wt 
+from sash.v$active_session_history_test
+where sample_time >= (sysdate - 60/24/60)
+and session_state = ''WAITING''
+group by sql_id, wait_class
+union
+select sql_id, ''ON CPU'', count(*) wt  from sash.v$active_session_history_test
+where sample_time >= (sysdate - 60/24/60)
+and session_state = ''ON CPU''
+group by  sql_id
+) where sql_id is not null  
+order by sum(wt) over (partition by sql_id) desc
+) 
+group by sql_id
+)
+order by "Total" desc
+)
+where rownum < 10';
+     exception
+        when dup_val_on_index then
+            sash_repo.log_message('get_top10', 'Duplicate Key ?','W');
+end get_top10;
  
 procedure get_stats(v_dblink varchar2) is
  l_dbid number;
