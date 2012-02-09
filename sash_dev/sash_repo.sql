@@ -12,6 +12,7 @@
 --               job watchdog added
 --               more logging added
 --               support for RAC and multiple databases
+--               Add job get_top10
 
 
 spool sash_repo.log
@@ -437,11 +438,20 @@ begin
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
         log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_db_link,'I');
+
+        vwhat:='begin sash_pkg.get_top10('''|| v_db_link || '''); end;';
+        dbms_scheduler.create_job(job_name => 'sash_pkg_get_top10_' || v_db_link,
+                              job_type=>'PLSQL_BLOCK',
+                              job_action=> vwhat,
+                              start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
+                              repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
+                              enabled=>true);
+        log_message('add_instance_job','adding scheduler job sash_pkg_get_top10_' || v_db_link,'I');
+    
     exception when others then
             log_message('add_instance_job', SUBSTR(SQLERRM, 1 , 1000) ,'E');
             RAISE_APPLICATION_ERROR(-20031,'SASH add_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
-
 end sash_repo;
 /
 show err 
