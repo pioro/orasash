@@ -440,7 +440,7 @@ begin
         log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_db_link,'I');
 
         vwhat:='begin sash_pkg.get_top10('''|| v_db_link || '''); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_get_top10_' || v_db_link,
+        dbms_scheduler.create_job(job_name => 'sash_pkg_top10_' || v_db_link,
                               job_type=>'PLSQL_BLOCK',
                               job_action=> vwhat,
                               start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
