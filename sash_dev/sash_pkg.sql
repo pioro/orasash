@@ -151,12 +151,12 @@ decode(wait_class, ''Network'', wt, NULL) net,
 sum(wt) over (partition by sql_id) r
 from (
 select sql_id, wait_class, count(*) wt 
-from sash.v$active_session_history_test
+from sash.v$active_session_history
 where sample_time >= (sysdate - 60/24/60)
 and session_state = ''WAITING''
 group by sql_id, wait_class
 union
-select sql_id, ''ON CPU'', count(*) wt  from sash.v$active_session_history_test
+select sql_id, ''ON CPU'', count(*) wt  from sash.v$active_session_history
 where sample_time >= (sysdate - 60/24/60)
 and session_state = ''ON CPU''
 group by  sql_id
