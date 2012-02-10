@@ -167,26 +167,6 @@ create or replace view sash as select * from sash1;
 create or replace view sash_all as select * from sash1;
 
 
-
-create table sash_top10 ( 
-		dbid			 number,
-                date_snap           date,
-                sql_id              varchar2(13),
-                cpu                number, 
-                user_i_o                number, 
-                system_i_o                number, 
-                administration          number,
-                other          number,
-                configuration          number,
-                application         number,
-                concurrency         number,
-                network               number,
-                total               number
-               
-);
-
-CREATE UNIQUE INDEX "SASH"."SASH_GET_TOP10_I" ON "SASH"."SASH_TOP10" ("SQL_ID", "DATE_SNAP") ;
-
 create table sash_obj_plus (
 DBID	NUMBER,
 table_name	varchar2(30),
@@ -205,7 +185,26 @@ clustering	number,
 partitioned	varchar2(3)
 );
 
-create unique index "SASH"."SASH_OBJ_PLUS_I" on "SASH"."SASH_OBJ_PLUS" ("DBID", "TABLE_NAME","INDEX_NAME") ;
+create unique index SASH_OBJ_PLUS_I on sash_obj_plus (DBID, TABLE_NAME,INDEX_NAME) ;
+
+
+create table sash_top10 ( 
+		dbid			 number,
+                date_snap           date,
+                sql_id              varchar2(13),
+                cpu                number, 
+                user_i_o                number, 
+                system_i_o                number, 
+                administration          number,
+                other          number,
+                configuration          number,
+                application         number,
+                concurrency         number,
+                network               number,
+                total               number            
+);
+
+create unique index SASH_GET_TOP10_I on sash_top10 (SQL_ID,DATE_SNAP) ;
 
 create table sash_log
    (log_id       number,
@@ -291,8 +290,9 @@ create table sash_event_names(
       dbid number, 
       event# number, 
       wait_class varchar2(64), 
-      name varchar2(64))
-      event_id number;
+      name varchar2(64),
+      event_id number
+	  );
 
 create unique index sash_event_names_i on sash_event_names( event# , dbid );
 	  
