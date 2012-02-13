@@ -20,6 +20,7 @@
 --		 new table SASH_OBJ_PLUS -- AlbertoFro
 --               new field in SASH_EVENT_NAMES table event_id -- AlbertoFro
 --		 new table SASH_TOP10 -- AlbertoFro
+--		 new column OWNER in SASH_OBJ_PLUS -- AlbertoFro
 
 
 set term off
@@ -168,7 +169,8 @@ create or replace view sash_all as select * from sash1;
 
 
 create table sash_obj_plus (
-DBID	NUMBER,
+DBID	number,
+owner varchar2(30),
 table_name	varchar2(30),
 index_name	varchar2(30),
 type_index	varchar2(9),
@@ -185,7 +187,7 @@ clustering	number,
 partitioned	varchar2(3)
 );
 
-create unique index SASH_OBJ_PLUS_I on sash_obj_plus (DBID, TABLE_NAME,INDEX_NAME) ;
+create unique index SASH_OBJ_PLUS_I on sash_obj_plus (owner,DBID, TABLE_NAME,INDEX_NAME) ;
 
 
 create table sash_top10 ( 
