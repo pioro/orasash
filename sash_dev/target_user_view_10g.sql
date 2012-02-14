@@ -147,6 +147,7 @@ AS
   WHERE a.owner    NOT IN ('SYS','SYSTEM')
   AND b.owner      NOT IN ('SYS','SYSTEM')
   AND a.table_name = b.table_name
+    and a.OWNER = B.OWNER
   ORDER BY a.table_name;
 
 grant select on sys.SASHIT_CF to sash;
