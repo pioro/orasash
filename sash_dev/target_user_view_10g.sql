@@ -121,9 +121,10 @@ where
 grant select on sys.sashnow to sash;
 
 
-CREATE OR REPLACE FORCE VIEW "SYS"."SASHIT_CF" ("TABLE_NAME", "INDEX_NAME", "TYPE_INDEX", "LBLOCKS", "DKEYS", "CF", "STATUS", "NROWS", "BLOCKS", "AVGROW_L", "LANALYZED_T", "LANALYZED_I", "CLUSTERING", "PARTITIONED")
+CREATE OR REPLACE FORCE VIEW "SYS"."SASHIT_CF" ("OWNER", "TABLE_NAME", "INDEX_NAME", "TYPE_INDEX", "LBLOCKS", "DKEYS", "CF", "STATUS", "NROWS", "BLOCKS", "AVGROW_L", "LANALYZED_T", "LANALYZED_I", "CLUSTERING", "PARTITIONED")
 AS
-  SELECT a.table_name,
+  SELECT a.owner,
+    a.table_name,
     b.index_name,
     b.uniqueness        AS uniqueness_i,
     b.leaf_blocks       AS leaf_blocks_i,
@@ -144,10 +145,10 @@ AS
     a.partitioned
   FROM dba_tables a,
     dba_indexes b
-  WHERE a.owner    NOT IN ('SYS','SYSTEM')
-  AND b.owner      NOT IN ('SYS','SYSTEM')
-  AND a.table_name = b.table_name
-    and a.OWNER = B.OWNER
+  WHERE a.owner NOT IN ('SYS','SYSTEM')
+  AND b.owner NOT   IN ('SYS','SYSTEM')
+  AND a.TABLE_NAME   = B.TABLE_NAME
+  AND a.OWNER        = B.OWNER
   ORDER BY a.table_name;
 
 grant select on sys.SASHIT_CF to sash;
