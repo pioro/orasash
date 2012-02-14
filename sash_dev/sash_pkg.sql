@@ -122,7 +122,7 @@ PROCEDURE get_obj_plus(v_dblink varchar2) is
  l_dbid number;
  begin
     execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
-    execute immediate 'insert into sash_obj_plus (dbid,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,LANALYZED_T,lanalyzed_i,clustering,partitioned) select ' || l_dbid || ',table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,LANALYZED_T,lanalyzed_i,clustering,partitioned from sys.sashit_cf@'||v_dblink;
+    execute immediate 'insert into sash_obj_plus (dbid,owner,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,clustering,partitioned) select ' || l_dbid || ',owner,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,clustering,partitioned from sys.sashit_cf@'||v_dblink;
      exception
         when dup_val_on_index then
             sash_repo.log_message('get_obj_plus', 'Already configured ?','W');
