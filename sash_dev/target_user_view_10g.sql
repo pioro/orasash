@@ -13,6 +13,7 @@
 --      - checking if SYS user is used to execute 
 --      - script clean up
 -- V2.3 - Add new view SYS.SASHIT_CF
+--      - Add new view SYS.SASH_RMAN_STAT
 
 
 set ver off
@@ -120,6 +121,7 @@ where
 			
 grant select on sys.sashnow to sash;
 
+prompt "SASHIT_CF view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
 
 CREATE OR REPLACE FORCE VIEW "SYS"."SASHIT_CF" ("OWNER", "TABLE_NAME", "INDEX_NAME", "TYPE_INDEX", "LBLOCKS", "DKEYS", "CF", "STATUS", "NROWS", "BLOCKS", "AVGROW_L", "LANALYZED_T", "LANALYZED_I", "CLUSTERING", "PARTITIONED")
 AS
@@ -152,4 +154,30 @@ AS
   ORDER BY a.table_name;
 
 grant select on sys.SASHIT_CF to sash;
+
+prompt "SASH_RMAN_STAT view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
+
+create view "SYS"."SASH_RMAN_STAT" (
+INPUT_TYPE,output_device_type,status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    END_TIME ,
+    SESSION_RECID)
+as
+ SELECT 
+    input_type ,
+    output_device_type ,
+    status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    end_time ,
+    SESSION_RECID
+  from v_$RMAN_BACKUP_JOB_DETAILS 
+  WHERE start_time > sysdate - 7
+
+grant select on sys.SASH_RMAN_STAT to sash;
 exit;
