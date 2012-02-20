@@ -21,6 +21,7 @@
 --               new field in SASH_EVENT_NAMES table event_id -- AlbertoFro
 --		 new table SASH_TOP10 -- AlbertoFro
 --		 new column OWNER in SASH_OBJ_PLUS -- AlbertoFro
+--		 new table SASH_RMAN_STAT -- AlbertoFro
 
 
 set term off
@@ -207,6 +208,22 @@ create table sash_top10 (
 );
 
 create unique index SASH_GET_TOP10_I on sash_top10 (SQL_ID,DATE_SNAP) ;
+
+
+create table SASH_RMAN_STAT (
+DBID	number,
+INPUT_TYPE	VARCHAR2(13),
+OUTPUT_DEVICE_TYPE	VARCHAR2(17),
+STATUS	VARCHAR2(23),
+OUTPUT_BYTES_DISPLAY	VARCHAR2(4000),
+OUTPUT_BYTES_PER_SEC_DISPLAY	VARCHAR2(4000),
+TIME_TAKEN_DISPLAY	VARCHAR2(4000),
+START_TIME	DATE,
+END_TIME	DATE,
+SESSION_RECID	NUMBER
+);
+
+create index SASH_RMAN_STAT_I on SASH_RMAN_STAT (DBID, INPUT_TYPE);
 
 create table sash_log
    (log_id       number,
