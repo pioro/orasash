@@ -21,6 +21,7 @@
 --v2.3 Changes   - Add new procedure get_obj_plus - AlbertoFro
 --               - Add new peocedure get_top10 - AlbertoFro
 --               - Add new field in get_event_name procedure - AlbertoFro
+--               - Add new procedure sash_rman_stat -AlbertoFro
 
 spool sash_pkg.log
 prompt Crating SASH_PKG package
@@ -39,6 +40,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure get_latch(v_dblink varchar2) ; 
     procedure get_users(v_dblink varchar2)  ;
     procedure get_obj_plus(v_dblink varchar2)  ;
+    procedure get_RMAN_STAT(V_DBLINK varchar2)  ;
     procedure get_top10(v_dblink varchar2) ;
     procedure get_params(v_dblink varchar2)  ;
     procedure get_sqltxt(l_dbid number, v_dblink varchar2) ;
@@ -121,6 +123,7 @@ end get_latch;
 PROCEDURE get_obj_plus(v_dblink varchar2) is
  l_dbid number;
  begin
+    execute immediate 'truncate table sash_obj_plus';
     execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
     execute immediate 'insert into sash_obj_plus (dbid,owner,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,clustering,partitioned) select ' || l_dbid || ',owner,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,clustering,partitioned from sys.sashit_cf@'||v_dblink;
      exception
@@ -128,6 +131,33 @@ PROCEDURE get_obj_plus(v_dblink varchar2) is
             sash_repo.log_message('get_obj_plus', 'Already configured ?','W');
 end get_obj_plus;
 
+
+PROCEDURE get_RMAN_STAT(v_dblink varchar2) is
+ l_dbid number;
+ begin
+    execute immediate 'truncate table sash_rman_stat';
+    execute immediate 'select dbid  from sys.v_$database@'||V_DBLINK into L_DBID;
+    execute immediate 'insert into sash_rman_stat (dbid,input_type ,
+    output_device_type ,
+    status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    end_time ,
+    SESSION_RECID) select ' || l_dbid || ',input_type ,
+    output_device_type ,
+    status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    end_time ,
+    SESSION_RECID from sys.sash_rman_stat@'||v_dblink;
+     exception
+        when DUP_VAL_ON_INDEX then
+            SASH_REPO.LOG_MESSAGE('get_rman_stat', 'Already configured ?','W');
+end get_RMAN_STAT;
 
 PROCEDURE get_top10(v_dblink varchar2) is
  l_dbid number;
