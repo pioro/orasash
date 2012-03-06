@@ -243,6 +243,7 @@ create unique index sash_params_i on sash_params( dbid , name );
 create table sash_event_names( 
       dbid number, 
       event# number, 
+      event_id  number,
       wait_class varchar2(64), 
       name varchar2(64));
 

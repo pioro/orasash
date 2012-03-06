@@ -241,7 +241,7 @@ PROCEDURE get_event_names(v_dblink varchar2) is
           
        begin
           l_dbid:=get_dbid(v_dblink);
-          execute immediate 'insert into sash_event_names ( dbid, event#, name, wait_class ) select distinct '|| l_dbid ||', event#, name, wait_class from sys.v_$event_name@' || v_dblink;
+          execute immediate 'insert into sash_event_names ( dbid, event#, event_id, name, wait_class ) select distinct '|| l_dbid ||', event#, event_id, name, wait_class from sys.v_$event_name@' || v_dblink;
          exception
             when DUP_VAL_ON_INDEX then
                     sash_repo.log_message('GET_EVENT_NAMES', 'Already configured ?','W');
