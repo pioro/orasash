@@ -296,6 +296,14 @@ a.buttons {
 	height: 30px;
 }
 
+a.buttons1 {
+	-webkit-font-smoothing: antialiased;
+	font-weight: normal;
+	text-shadow: rgba(0, 0, 0, 0.4) 0 -1px 0;
+	padding: 2px 2px 2px 22px;
+	height: 30px;
+}
+
 a.github {
 	background: url(../images/octocat-small.png) no-repeat 1px;
 }
