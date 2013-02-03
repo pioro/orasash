@@ -18,6 +18,10 @@
 -- v2.3 Changes  - full RAC and multi DB support
 --               - gathering metrics
 --               - logging
+--v2.3 Changes   - Add new procedure get_obj_plus - AlbertoFro
+--               - Add new peocedure get_top10 - AlbertoFro
+--               - Add new field in get_event_name procedure - AlbertoFro
+--               - Add new procedure sash_rman_stat -AlbertoFro
 
 spool sash_pkg.log
 prompt Crating SASH_PKG package
@@ -35,6 +39,9 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure get_objs(l_dbid number, v_dblink varchar2)  ;
     procedure get_latch(v_dblink varchar2) ; 
     procedure get_users(v_dblink varchar2)  ;
+    procedure get_obj_plus(v_dblink varchar2)  ;
+    procedure get_RMAN_STAT(V_DBLINK varchar2)  ;
+    procedure get_top10(v_dblink varchar2) ;
     procedure get_params(v_dblink varchar2)  ;
     procedure get_sqltxt(l_dbid number, v_dblink varchar2) ;
     procedure get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number)  ;
@@ -112,6 +119,89 @@ PROCEDURE get_latch(v_dblink varchar2) is
     execute immediate 'insert into sash_latch (dbid, latch#, name) select ' || l_dbid || ',latch#, name from sys.v_$latch@'||v_dblink;
     commit;
 end get_latch; 
+
+PROCEDURE get_obj_plus(v_dblink varchar2) is
+ l_dbid number;
+ begin
+    execute immediate 'truncate table sash_obj_plus';
+    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+    execute immediate 'insert into sash_obj_plus (dbid,owner,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,clustering,partitioned) select ' || l_dbid || ',owner,table_name,index_name,type_index,lblocks,DKEYS,cf,status,NROWS,blocks,avgrow_l,clustering,partitioned from sys.sashit_cf@'||v_dblink;
+     exception
+        when dup_val_on_index then
+            sash_repo.log_message('get_obj_plus', 'Already configured ?','W');
+end get_obj_plus;
+
+
+PROCEDURE get_RMAN_STAT(v_dblink varchar2) is
+ l_dbid number;
+ begin
+    execute immediate 'truncate table sash_rman_stat';
+    execute immediate 'select dbid  from sys.v_$database@'||V_DBLINK into L_DBID;
+    execute immediate 'insert into sash_rman_stat (dbid,input_type ,
+    output_device_type ,
+    status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    end_time ,
+    SESSION_RECID) select ' || l_dbid || ',input_type ,
+    output_device_type ,
+    status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    end_time ,
+    SESSION_RECID from sys.sash_rman_stat@'||v_dblink;
+     exception
+        when DUP_VAL_ON_INDEX then
+            SASH_REPO.LOG_MESSAGE('get_rman_stat', 'Already configured ?','W');
+end get_RMAN_STAT;
+
+PROCEDURE get_top10(v_dblink varchar2) is
+ l_dbid number;
+ begin
+    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+    execute immediate 'insert into sash_top10 (dbid,date_snap,sql_id,cpu,user_i_o,system_i_o,administration,other,configuration,application,concurrency,network,total) select * from (
+select * from (
+select ' || l_dbid || ', sysdate, sql_id, max(oncpu) "CPU" , max(userio) "User I/O", max(systemio) 
+"System I/O", max(adm) "Administration", max(other) "Other" , max(conf) 
+"Configuration" , max(app) "Application", max(conc) "Concurrency", max(net) "Network" , max(r) "Total"  from (
+select sql_id, 
+decode(wait_class, ''ON CPU'', wt, NULL) oncpu,
+decode(wait_class, ''User I/O'', wt, NULL) userio,
+decode(wait_class, ''System I/O'', wt, NULL) systemio,
+decode(wait_class, ''Administrative'', wt, NULL) adm,
+decode(wait_class, ''other'', wt, NULL) other,
+decode(wait_class, ''Configuration'', wt, NULL) conf,
+decode(wait_class, ''application'', wt, NULL) app,
+decode(wait_class, ''Concurrency'', wt, NULL) conc,
+decode(wait_class, ''Network'', wt, NULL) net,
+sum(wt) over (partition by sql_id) r
+from (
+select sql_id, wait_class, count(*) wt 
+from sash.v$active_session_history
+where sample_time >= (sysdate - 60/24/60)
+and session_state = ''WAITING''
+group by sql_id, wait_class
+union
+select sql_id, ''ON CPU'', count(*) wt  from sash.v$active_session_history
+where sample_time >= (sysdate - 60/24/60)
+and session_state = ''ON CPU''
+group by  sql_id
+) where sql_id is not null  
+order by sum(wt) over (partition by sql_id) desc
+) 
+group by sql_id
+)
+order by "Total" desc
+)
+where rownum < 10';
+     exception
+        when dup_val_on_index then
+            sash_repo.log_message('get_top10', 'Duplicate Key ?','W');
+end get_top10;
  
 procedure get_stats(v_dblink varchar2) is
  l_dbid number;
@@ -241,7 +331,7 @@ PROCEDURE get_event_names(v_dblink varchar2) is
           
        begin
           l_dbid:=get_dbid(v_dblink);
-          execute immediate 'insert into sash_event_names ( dbid, event#, name, wait_class ) select distinct '|| l_dbid ||', event#, name, wait_class from sys.v_$event_name@' || v_dblink;
+          execute immediate 'insert into sash_event_names ( dbid, event#, name, wait_class,event_id  ) select distinct '|| l_dbid ||', event#, name, wait_class,event_id  from sys.v_$event_name@' || v_dblink;
          exception
             when DUP_VAL_ON_INDEX then
                     sash_repo.log_message('GET_EVENT_NAMES', 'Already configured ?','W');
@@ -520,6 +610,7 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
                     SESSION_ID,
                     SESSION_STATE,
                     SESSION_SERIAL#,
+                    OSUSER,
                     SESSION_TYPE  ,
                     USER_ID,
                     COMMAND,
@@ -567,6 +658,7 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
                         sash_rec.SESSION_ID,
                         sash_rec.SESSION_STATE,
                         sash_rec.SESSION_SERIAL#,
+                        sash_rec.OSUSER,
                         sash_rec.SESSION_TYPE  ,
                         sash_rec.USER_ID,
                         sash_rec.COMMAND,
@@ -765,6 +857,7 @@ end collect_other;
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
           get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
           get_objs(l_dbid, v_dblink);
+          get_obj_plus(v_dblink);
           collect_metric(l_hist_samp_id, v_dblink , v_inst_num );
           collect_io_event(v_dblink, v_inst_num,l_hist_samp_id);
           if (l_ver = '11') then

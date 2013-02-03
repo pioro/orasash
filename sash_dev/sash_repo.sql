@@ -12,6 +12,8 @@
 --               job watchdog added
 --               more logging added
 --               support for RAC and multiple databases
+--               Add job get_top10
+--               Modify start_rt_collecting_jobs -- AlbertFro
 
 
 spool sash_repo.log
@@ -290,29 +292,44 @@ begin
             RAISE_APPLICATION_ERROR(-20034,'SASH  stop_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
 end;
 
+
 -- procedure start_snap_collecting_jobs
 -- Start snapshot jobs - running every STATFREQ
 
-procedure start_snap_collecting_jobs is
-begin
-    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_GET%' and state<>'RUNNING') loop
-      dbms_scheduler.enable(i.job_name);
-      dbms_scheduler.run_job(i.job_name, false);
-      dbms_output.put_line('starting scheduler job ' || i.job_name);
-      log_message('start_snap_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
-    end loop;
-exception
-    when others then
-        log_message('start_snap_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20035,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
-end;
+-- procedure start_snap_collecting_jobs is
+-- begin
+--     for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_GET%' and state<>'RUNNING') loop
+--       dbms_scheduler.enable(i.job_name);
+--       dbms_scheduler.run_job(i.job_name, false);
+--       dbms_output.put_line('starting scheduler job ' || i.job_name);
+--       log_message('start_snap_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
+--     end loop;
+-- exception
+--     when others then
+--         log_message('start_snap_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
+--         RAISE_APPLICATION_ERROR(-20035,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+-- end;
 
 -- procedure start_rt_collecting_jobs
 -- Start real time jobs - collecting ASH data
 
+-- procedure start_rt_collecting_jobs is
+-- begin
+--     for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_COLL%' and state<>'RUNNING') loop
+--       dbms_scheduler.enable(i.job_name);
+--       dbms_scheduler.run_job(i.job_name, false);
+--       dbms_output.put_line('starting scheduler job ' || i.job_name);
+--       log_message('start_rt_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
+--     end loop;
+-- exception
+--     when others then
+--         log_message('start_rt_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
+--         RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
+-- end;
+
 procedure start_rt_collecting_jobs is
 begin
-    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_COLL%' and state<>'RUNNING') loop
+    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_%' and state<>'RUNNING') loop
       dbms_scheduler.enable(i.job_name);
       dbms_scheduler.run_job(i.job_name, false);
       dbms_output.put_line('starting scheduler job ' || i.job_name);
@@ -321,8 +338,9 @@ begin
 exception
     when others then
         log_message('start_rt_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
+        RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
+
 
 -- procedure start_collecting_jobs
 -- Starting both real time and snapshot jobs 
@@ -437,11 +455,28 @@ begin
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
         log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_db_link,'I');
+
+        vwhat:='begin sash_pkg.get_top10('''|| v_db_link || '''); end;';
+        dbms_scheduler.create_job(job_name => 'sash_pkg_top10_' || v_db_link,
+                              job_type=>'PLSQL_BLOCK',
+                              job_action=> vwhat,
+                              start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
+                              repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
+                              enabled=>true);
+        log_message('add_instance_job','adding scheduler job sash_pkg_get_top10_' || v_db_link,'I');
+
+        vwhat:='begin sash_pkg.get_RMAN_STAT('''|| v_db_link || '''); end;';
+        dbms_scheduler.create_job(job_name => 'sash_pkg_RMAN_stat',
+                                job_type => 'PLSQL_BLOCK',
+                                job_action => vwhat,
+                                START_DATE => sysdate,
+                                REPEAT_INTERVAL => 'FREQ = HOURLY; INTERVAL = 3',
+                                enabled=>true);
+       log_message('add_instance_job','adding scheduler job sash_pkg_get_RMAN_STAT_' || v_db_link,'I');
     exception when others then
             log_message('add_instance_job', SUBSTR(SQLERRM, 1 , 1000) ,'E');
             RAISE_APPLICATION_ERROR(-20031,'SASH add_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
-
 end sash_repo;
 /
 show err 
