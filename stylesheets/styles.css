@@ -296,7 +296,7 @@ a.buttons {
 	height: 30px;
 }
 
-a.buttons1 {
+a.buttons_noarrow {
 	-webkit-font-smoothing: antialiased;
 	font-weight: normal;
 	text-shadow: rgba(0, 0, 0, 0.4) 0 -1px 0;
