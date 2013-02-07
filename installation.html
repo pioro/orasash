@@ -22,14 +22,142 @@
         <ul>
 		  <li class="download"><a class="buttons_noarrow" href="index.html">OraSASH</a></li>
           <li class="download"><a class="buttons_noarrow" href="installation.html">Instalation</a></li>
-		  <li class="download"><a class="buttons_noarrow" href="history.html">History</a></li>
+		  <li class="download"><a class="buttons_noarrow" href="manual.html">User manual</a></li>
+		  <li class="download"><a class="buttons_noarrow" href="history.html">Project history</a></li>
           <li class="download"><a class="buttons" href="https://github.com/pioro/orasash/archive/v2.3.zip">Download ZIP</a></li>
           <li><a class="buttons github" href="https://github.com/pioro/orasash">View On GitHub</a></li>
         </ul>
 
-        <p class="header">This project is maintained by <a class="header name" href="https://github.com/pioro">Marcin Przepiorowski</a></p>
-
+        <p><small>This project is maintained by <a href="https://github.com/pioro">Marcin Przepiorowski</a></small></p>
+		<p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> based on the Dinky theme</small></p>
 
       </header>
       <section>
-        <h3>Welcome to OraSASH project page</h3>
+        <h3>Installation steps</h3>
+		<ul>
+		<li>TARGET - database you want to monitor</li>
+		<li>REPORITORY - database where all data will be kept and where all monitring jobs are running</li>
+		</ul>
+		<ol>
+		<li>Uncompress sash.tar.gz (or sash.7z) package into your working directory.</li>
+		<li>Connect to TARGET database as user SYS and execute the following script.
+		<pre>targ_userview_&lt;db_version&gt;.sql</pre></li>
+		<li>Run the following script as user SYS on REPOSITORY database 
+		<pre>sqlplus / as sysdba @config.sql</pre>and answer all questions.
+In first part script will create repository owner and
+whole repository schema. The following questions have to be answered:
+<ul>
+<li>repository schema name - default is sash</li>
+<li>schema name password</li>
+<li>schema name tablespace</li>
+</ul>
+<br>
+<B>Warining:</B><BR>
+If specified username and schema already exist it will be dropped and recreated with new empty repository.
+<br>
+Press Control-C if you don't want to configure target database at that time.
+<br>
+Next part is a target (monitored) database configuration and the following questions have to be answered:
+<ul>
+<li>database name,</li> 
+<li>number of instances (1 for single instance database or more than one for RAC database),</li>
+<li>target database host name</li>
+<li>instance(s) name</li>
+<li>listener port</li>
+<li>password for sash user on target database.</li>
+</ul>
+
+Configuration script will create a database links from repository database to every instance of target database
+and will setup a collection jobs for active sessions (SASH_PKG_COLLECT_%) and jobs for SQL/metrics collection (SASH_PKG_GET_ALL%).
+Beside of that repository clean up job and watch dog job will be setup as well.
+
+<br>
+See example below
+<pre>
+"------------------------------------------------------------------------------------"
+Creating repository owner and job kill function using SYS user
+"------------------------------------------------------------------------------------"
+Enter user name (schema owner) [or enter to accept username sash] ?
+Enter user password ? sash
+Enter SASH user default tablespace [or enter to accept USERS tablespace] ?
+SASH default tablespace is: users
+"------------------------------------------------------------------------------------"
+Existing sash user will be deleted.
+If you are not sure hit Control-C , else Return :
+"------------------------------------------------------------------------------------"
+New sash user will be created.
+
+Warning: Procedure created with compilation errors.
+
+Connected.
+"------------------------------------------------------------------------------------"
+Installing SASH objects into sash schema
+"------------------------------------------------------------------------------------"
+Create sequence
+Create tables
+Crating SASH_REPO package
+No errors.
+No errors.
+Crating SASH_PKG package
+No errors.
+No errors.
+"------------------------------------------------------------------------------------"
+Instalation completed. Starting SASH configuration process
+"------------------------------------------------------------------------------------"
+Enter target database name POLTP
+Enter number of instances [default 1]
+Enter host name for instance number 1 oracle-server.mydomain
+Enter instance name for instance number 1 [ default POLTP ]
+Enter listener port number [default 1521]
+Enter SASH password on target database sash
+"------------------------------------------------------------------------------------"
+Configuration completed. Exiting.
+You can now connect using user name and password specified above
+"------------------------------------------------------------------------------------"
+Disconnected from Oracle Database 11g Enterprise Edition Release 11.2.0.1.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options</pre></li>
+<li>check repository jobs and log table<br>
+Login as user sash to repository database and run following script - job_stat.sql
+Output should be similar to this
+<pre>
+SQL> @job_stat.sql
+
+JOB_NAME                       LAST_START_DATE                     NEXT_RUN_DATE                       STATE           FAILURE_COUNT
+------------------------------ ----------------------------------- ----------------------------------- --------------- -------------
+SASH_PKG_GET_ALL_POLTP1        24-NOV-11 03.00.30.431000 +00:00    24-NOV-11 03.15.30.300000 +00:00    SCHEDULED                   0
+SASH_REPO_PURGE                                                    25-NOV-11 00.00.00.000000 +00:00    SCHEDULED                   0
+SASH_REPO_WATCHDOG             24-NOV-11 11.00.30.408000 +00:00    24-NOV-11 11.05.30.000000 +00:00    SCHEDULED                   0
+SASH_PKG_COLLECT_POLTP1        24-NOV-11 11.00.30.295000 +00:00    24-NOV-11 11.00.30.000000 +00:00    RUNNING                     0
+</pre>
+Check repository error log using the following script - checklog.sql
+<pre>
+SQL> @checklog.sql
+
+R START_TIME                ACTION                                           MESSAGE
+- ------------------------- ------------------------------------------------ ------------------------------------------------------------------------
+W 2011-11-24 11:07:20       add_db                                           no db link - moving forward POLTP1
+I 2011-11-24 11:07:20       configure_db                                     get_event_names
+I 2011-11-24 11:07:20       configure_db                                     get_users
+I 2011-11-24 11:07:20       configure_db                                     get_params
+I 2011-11-24 11:07:20       configure_db                                     get_data_files
+I 2011-11-24 11:07:20       configure_db                                     get_metrics
+I 2011-11-24 11:07:20       add_instance_job                                 adding scheduler job sash_pkg_collect_POLTP1
+I 2011-11-24 11:07:20       add_instance_job                                 adding scheduler job sash_pkg_get_all_POLTP1
+I 2011-11-24 11:07:21       create_repository_jobs                           adding new repository job
+
+9 rows selected.
+</pre>
+</li>
+
+
+		</ol>
+	  </section>
+      <footer>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>		
+
+

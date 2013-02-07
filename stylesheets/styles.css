@@ -97,12 +97,12 @@ strong {
   font-weight:700;
 }
 
-ul li {
+ul {
   list-style: inside;
   padding-left: 25px;
 }
 
-ol li {
+ol {
   list-style: decimal inside;
   padding-left: 20px;
 }
@@ -326,11 +326,11 @@ section {
 /* Footer */
 
 footer {
-  width:170px;
+  width:350px;
   float:left;
   position:fixed;
   bottom:10px;
-	padding-left: 50px;
+  padding-left: 300px;
 }
 
 @media print, screen and (max-width: 960px) {
