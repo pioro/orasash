@@ -34,6 +34,7 @@
       </header>
       <section>
         <h3>Installation steps</h3>
+		If you have any problems with installation - see know issues section below.
 		<ul>
 		<li>TARGET - database you want to monitor</li>
 		<li>REPORITORY - database where all data will be kept and where all monitring jobs are running</li>
@@ -151,6 +152,11 @@ I 2011-11-24 11:07:21       create_repository_jobs                           add
 
 
 		</ol>
+	  <h3>Known issues</h3>
+	  <ol>
+	  <li>There are errors if you try to install packages in different schema name - use sash as schema name or
+	  comment out line <i>sys.kill_sash_session;</i> in <i>sash_repo.stop_collecting_jobs</i> - will be fixed in 2.3.1</li>
+	  <li>If can't add two databases with same name to one repository - will be fixed in 2.3.1</li>
 	  </section>
       <footer>
       </footer>
