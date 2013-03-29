@@ -18,6 +18,8 @@
 -- v2.3 Changes  - full RAC and multi DB support
 --               - gathering metrics
 --               - logging
+--v2.3 Changes   - Add new peocedure get_top10 - AlbertoFro -- moved to sash_repo package - this is internal job 
+--               - Add new field in get_event_name procedure - AlbertoFro
 
 spool sash_pkg.log
 prompt Crating SASH_PKG package
@@ -71,6 +73,8 @@ begin
     sash_pkg.get_data_files(v_dblink);
     sash_repo.log_message('configure_db', 'get_metrics' ,'I');
     sash_pkg.get_metrics(v_dblink);
+    sash_repo.log_message('configure_db', 'get_stats' ,'I');
+    sash_pkg.get_stats(v_dblink);
     commit; 
 exception
     when others then
@@ -112,7 +116,7 @@ PROCEDURE get_latch(v_dblink varchar2) is
     execute immediate 'insert into sash_latch (dbid, latch#, name) select ' || l_dbid || ',latch#, name from sys.v_$latch@'||v_dblink;
     commit;
 end get_latch; 
- 
+
 procedure get_stats(v_dblink varchar2) is
  l_dbid number;
  begin
@@ -520,6 +524,7 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
                     SESSION_ID,
                     SESSION_STATE,
                     SESSION_SERIAL#,
+                    OSUSER,
                     SESSION_TYPE  ,
                     USER_ID,
                     COMMAND,
@@ -567,6 +572,7 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
                         sash_rec.SESSION_ID,
                         sash_rec.SESSION_STATE,
                         sash_rec.SESSION_SERIAL#,
+                        sash_rec.OSUSER,
                         sash_rec.SESSION_TYPE  ,
                         sash_rec.USER_ID,
                         sash_rec.COMMAND,
@@ -708,8 +714,8 @@ l_dbid number;
 
 begin
     l_dbid:=get_dbid(v_dblink);
-    sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from sys.v_$sysstat@'|| v_dblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1)';	
-    open sash_cur FOR sql_stat; 
+    sql_stat := 'select /*+DRIVING_SITE(ss) */ ' || l_dbid || ' , ' || vinstance || ' ,sysdate, statistic#, value from sys.v_$sysstat@'|| v_dblink || ' ss where statistic# in (select sash_s.statistic# from sash_stats sash_s where collect = 1 and dbid = :1)';	
+    open sash_cur FOR sql_stat using l_dbid; 
     fetch sash_cur bulk collect into session_rec;
     forall i in 1..session_rec.count 
         insert into sash_instance_stats values session_rec(i);

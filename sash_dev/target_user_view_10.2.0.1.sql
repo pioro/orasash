@@ -12,7 +12,8 @@
 -- v2.3 - new fields added - 11g2
 --      - checking if SYS user is used to execute 
 --      - script clean up
-
+-- v2.3 - Add new view SYS.SASHIT_CF
+--      - Add new view SYS.SASH_RMAN_STAT
 
 set ver off
 set term off
@@ -52,6 +53,7 @@ grant select on v_$system_event to sash;
 grant select on v_$sysmetric_history to sash;
 grant select on v_$iostat_function to sash;
 grant select on v_$sqlstats to sash;
+grant select on dba_tables to sash;
 
 prompt "SASHNOW view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
 create or replace view sashnow as 
@@ -61,6 +63,7 @@ select
     s.indx          "SESSION_ID",
     decode(s.ksusetim, 0,'WAITING','ON CPU') "SESSION_STATE",
     s.ksuseser      "SESSION_SERIAL#",
+    s.ksuseunm 	    "OSUSER",
     s.ksuseflg      "SESSION_TYPE"  ,
     s.ksuudlui      "USER_ID",
     s.ksuudoct      "COMMAND",
@@ -116,4 +119,65 @@ where
     );
 			
 grant select on sys.sashnow to sash;
+
+prompt "SASHIT_CF view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
+
+CREATE OR REPLACE FORCE VIEW "SYS"."SASHIT_CF" ("OWNER", "TABLE_NAME", "INDEX_NAME", "TYPE_INDEX", "LBLOCKS", "DKEYS", "CF", "STATUS", "NROWS", "BLOCKS", "AVGROW_L", "LANALYZED_T", "LANALYZED_I", "CLUSTERING", "PARTITIONED")
+AS
+  SELECT a.owner,
+    a.table_name,
+    b.index_name,
+    b.uniqueness        AS uniqueness_i,
+    b.leaf_blocks       AS leaf_blocks_i,
+    b.distinct_keys     AS distinct_keys_i,
+    b.clustering_factor AS clustering_factor_i,
+    b.status            AS status_i,
+    a.num_rows          AS num_rows_t,
+    a.blocks            AS blocks_t ,
+    a.avg_row_len       AS avg_row_len_t ,
+    (a.last_analyzed)   AS last_analyzed_t,
+    (b.last_analyzed)   AS last_analyzed_i ,
+    CASE
+      WHEN b.clustering_factor=0
+      OR a.blocks             =0
+      THEN 0
+      ELSE (b.clustering_factor/a.blocks)
+    END AS clustering,
+    a.partitioned
+  FROM dba_tables a,
+    dba_indexes b
+  WHERE a.owner NOT IN ('SYS','SYSTEM')
+  AND b.owner NOT   IN ('SYS','SYSTEM')
+  AND a.TABLE_NAME   = B.TABLE_NAME
+  AND a.OWNER        = B.OWNER
+  ORDER BY a.table_name;
+
+grant select on sys.SASHIT_CF to sash;
+
+prompt "SASH_RMAN_STAT view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"
+
+create view "SYS"."SASH_RMAN_STAT" (
+INPUT_TYPE,output_device_type,status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    END_TIME ,
+    SESSION_RECID)
+as
+ SELECT 
+    input_type ,
+    output_device_type ,
+    status,
+    output_bytes_display ,
+    output_bytes_per_sec_display ,
+    time_taken_display,
+    start_time ,
+    end_time ,
+    SESSION_RECID
+  from v_$RMAN_BACKUP_JOB_DETAILS 
+  WHERE start_time > sysdate - 7
+
+grant select on sys.SASH_RMAN_STAT to sash;
+
 exit;
