@@ -16,12 +16,6 @@
 --               changes in v$active_session_istory view
 --               new tables to keep metrics history
 --               new version of sash_sqlstats
---v2.3 Changes:  new field in SASH table OSUSER -- AlbertoFro
---		 new table SASH_OBJ_PLUS -- AlbertoFro
---               new field in SASH_EVENT_NAMES table event_id -- AlbertoFro
---		 new table SASH_TOP10 -- AlbertoFro
---		 new column OWNER in SASH_OBJ_PLUS -- AlbertoFro
---		 new table SASH_RMAN_STAT -- AlbertoFro
 
 
 set term off
@@ -56,7 +50,7 @@ create table sash1 (
                 session_id          number,
                 session_state       varchar2(20),
                 session_serial#     number,
-                OSUSER              VARCHAR2(30),
+				OSUSER              VARCHAR2(30),
                 session_type        number,                
                 user_id             number,
                 command             number,
@@ -166,64 +160,6 @@ create index sash_30i on sash30(sample_time,dbid) ;
 create index sash_31i on sash31(sample_time,dbid) ;
 
 create or replace view sash as select * from sash1;
-create or replace view sash_all as select * from sash1;
-
-
-create table sash_obj_plus (
-DBID	number,
-owner varchar2(30),
-table_name	varchar2(30),
-index_name	varchar2(30),
-type_index	varchar2(9),
-lblocks	number,
-DKEYS	NUMBER,
-cf	number,
-status	varchar2(8),
-NROWS	NUMBER,
-blocks	number,
-avgrow_l	number,
-LANALYZED_T	DATE,
-lanalyzed_i	date,
-clustering	number,
-partitioned	varchar2(3)
-);
-
-create unique index SASH_OBJ_PLUS_I on sash_obj_plus (owner,DBID, TABLE_NAME,INDEX_NAME) ;
-
-
-create table sash_top10 ( 
-		dbid			 number,
-                date_snap           date,
-                sql_id              varchar2(13),
-                cpu                number, 
-                user_i_o                number, 
-                system_i_o                number, 
-                administration          number,
-                other          number,
-                configuration          number,
-                application         number,
-                concurrency         number,
-                network               number,
-                total               number            
-);
-
-create unique index SASH_GET_TOP10_I on sash_top10 (SQL_ID,DATE_SNAP) ;
-
-
-create table SASH_RMAN_STAT (
-DBID	number,
-INPUT_TYPE	VARCHAR2(13),
-OUTPUT_DEVICE_TYPE	VARCHAR2(17),
-STATUS	VARCHAR2(23),
-OUTPUT_BYTES_DISPLAY	VARCHAR2(4000),
-OUTPUT_BYTES_PER_SEC_DISPLAY	VARCHAR2(4000),
-TIME_TAKEN_DISPLAY	VARCHAR2(4000),
-START_TIME	DATE,
-END_TIME	DATE,
-SESSION_RECID	NUMBER
-);
-
-create index SASH_RMAN_STAT_I on SASH_RMAN_STAT (DBID, INPUT_TYPE);
 
 create table sash_log
    (log_id       number,
@@ -308,10 +244,10 @@ create unique index sash_params_i on sash_params( dbid , name );
 create table sash_event_names( 
       dbid number, 
       event# number, 
-      event_id  number,
+	  event_id  number,
       wait_class varchar2(64), 
       name varchar2(64)
-	  );
+	);
 
 create unique index sash_event_names_i on sash_event_names( event# , dbid );
 	  
@@ -670,9 +606,9 @@ create or replace view v$active_session_history as
 		 PLSQL_ENTRY_SUBPROGRAM_ID,
 		 PLSQL_OBJECT_ID,
 		 PLSQL_SUBPROGRAM_ID,
-         null QC_INSTANCE_ID,
-         null QC_SESSION_ID,
-         null QC_SESSION_SERIAL#,
+         case when ash.qc is not null then ash.inst_id end QC_INSTANCE_ID,
+         ash.qc QC_SESSION_ID,
+         cast(null  as number) QC_SESSION_SERIAL#,
  		 ash.p1 p1text,
 		 ash.p2 p2text, 
 		 ash.p3 p3text,

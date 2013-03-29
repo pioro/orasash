@@ -63,6 +63,7 @@ create or replace view sys.sashnow as
           s.indx "session_id",
           decode (w.ksusstim, 0, 'waiting', 'on cpu') "session_state",
           s.ksuseser "session_serial#",
+          s.ksuseunm      "OSUSER",
 		  s.ksuseflg      "SESSION_TYPE"  ,
           s.ksuudlui "user_id",
 		s.ksuudoct      "COMMAND",	

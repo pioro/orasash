@@ -12,8 +12,6 @@
 --               job watchdog added
 --               more logging added
 --               support for RAC and multiple databases
---               Add job get_top10
---               Modify start_rt_collecting_jobs -- AlbertFro
 
 
 spool sash_repo.log
@@ -33,7 +31,6 @@ CREATE OR REPLACE PACKAGE sash_repo AS
     procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
     procedure add_instance_job (v_dbname varchar2, v_inst_num number, v_db_link varchar2);
     procedure remove_instance_job (v_dbname varchar2, v_inst_num number);
-    procedure get_top10;
 END sash_repo;
 /
 show errors
@@ -159,25 +156,13 @@ begin
                                   start_date => v_nextdate,
                                   repeat_interval => v_interval,
                                   enabled=>true);
+        dbms_scheduler.create_job(job_name => 'sash_repo_watchdog', job_type => 'plsql_block', job_action => 'sash_repo.watchdog;', start_date => sysdate, 
+                                  repeat_interval => 'freq = minutely; interval = 5',enabled=>true);
       end;
     else
       log_message('create_repository_jobs','repository job exist - remove first', 'I');
       RAISE_APPLICATION_ERROR(-20030,'sash create_repository_jobs - repository job exist - remove first');
     end if;
-        
-    dbms_scheduler.create_job(job_name => 'sash_repo_top10',
-                              job_type=>'PLSQL_BLOCK',
-                              job_action=> 'begin sash_repo.get_top10; end;',
-                              start_date=>trunc(sysdate+1/24,'HH24'),
-                              repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
-                              enabled=>true);
-    log_message('create_repository_jobs','adding scheduler job sash_repo_get_top10','I');
-        
-    dbms_scheduler.create_job(job_name => 'sash_repo_watchdog', job_type => 'plsql_block', job_action => 'sash_repo.watchdog;', start_date => sysdate, 
-                              repeat_interval => 'freq = minutely; interval = 5',enabled=>true);
-
-    log_message('create_repository_jobs','adding scheduler job sash_repo_watchdog','I');
-
 exception when others then
   log_message('create_repository_jobs', SUBSTR(SQLERRM, 1 , 1000) ,'E');
   RAISE_APPLICATION_ERROR(-20030,'sash  create_repository_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));            
@@ -305,44 +290,29 @@ begin
             RAISE_APPLICATION_ERROR(-20034,'SASH  stop_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
 end;
 
-
 -- procedure start_snap_collecting_jobs
 -- Start snapshot jobs - running every STATFREQ
 
 procedure start_snap_collecting_jobs is
 begin
-     for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_GET%' and state<>'RUNNING') loop
-       dbms_scheduler.enable(i.job_name);
-       dbms_scheduler.run_job(i.job_name, false);
-       dbms_output.put_line('starting scheduler job ' || i.job_name);
-       log_message('start_snap_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
-     end loop;
- exception
-     when others then
-         log_message('start_snap_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-         RAISE_APPLICATION_ERROR(-20035,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_GET%' and state<>'RUNNING') loop
+      dbms_scheduler.enable(i.job_name);
+      dbms_scheduler.run_job(i.job_name, false);
+      dbms_output.put_line('starting scheduler job ' || i.job_name);
+      log_message('start_snap_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
+    end loop;
+exception
+    when others then
+        log_message('start_snap_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20035,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
 
 -- procedure start_rt_collecting_jobs
 -- Start real time jobs - collecting ASH data
 
--- procedure start_rt_collecting_jobs is
--- begin
---     for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_COLL%' and state<>'RUNNING') loop
---       dbms_scheduler.enable(i.job_name);
---       dbms_scheduler.run_job(i.job_name, false);
---       dbms_output.put_line('starting scheduler job ' || i.job_name);
---       log_message('start_rt_collecting_jobs', 'starting scheduler job ' || i.job_name, 'I');
---     end loop;
--- exception
---     when others then
---         log_message('start_rt_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
---         RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
--- end;
-
 procedure start_rt_collecting_jobs is
 begin
-    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_%' and state<>'RUNNING') loop
+    for i in (select job_name from user_scheduler_jobs where job_name like '%SASH_PKG_COLL%' and state<>'RUNNING') loop
       dbms_scheduler.enable(i.job_name);
       dbms_scheduler.run_job(i.job_name, false);
       dbms_output.put_line('starting scheduler job ' || i.job_name);
@@ -351,9 +321,8 @@ begin
 exception
     when others then
         log_message('start_rt_collecting_jobs', SUBSTR(SQLERRM, 1 , 1000),'E');
-        RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));
+        RAISE_APPLICATION_ERROR(-20036,'SASH  start_collecting_jobs error ' || SUBSTR(SQLERRM, 1 , 1000));		 
 end;
-
 
 -- procedure start_collecting_jobs
 -- Starting both real time and snapshot jobs 
@@ -405,6 +374,7 @@ no_db_link EXCEPTION;
 PRAGMA EXCEPTION_INIT(no_db_link, -2024);
 v_dbid number;
 v_check number;
+s_version sash_targets.version%TYPE;
 
 begin
     v_dblink_target:='(DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST =' || v_host || ')(PORT = ' || v_port || ')))(CONNECT_DATA = (SID = ' || v_sid || ')))';
@@ -417,11 +387,12 @@ begin
     end;
     execute immediate 'create database link ' || v_dblink || ' connect to sash identified by ' || v_sash_pass || ' using ''' || v_dblink_target || '''';
     execute immediate 'select dbid from sys.v_$database@' || v_dblink into v_dbid;
+	execute immediate 'select version from v$instance@' || v_dblink into s_version;
     select count(*) into v_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num;
     if v_check = 0 then 
-        insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, v_version, v_cpu_count);
+        insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, coalesce(v_version, s_version), v_cpu_count);
     else 
-            log_message('add_db', 'Database ' || v_db_name || ' instance ' || v_inst_num || ' already added','W');	
+        log_message('add_db', 'Database ' || v_db_name || ' instance ' || v_inst_num || ' already added','W');	
     end if;
 end;
 
@@ -468,69 +439,10 @@ begin
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
         log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_db_link,'I');
-
-
-        vwhat:='begin sash_pkg.get_RMAN_STAT('''|| v_db_link || '''); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_RMAN_stat',
-                                job_type => 'PLSQL_BLOCK',
-                                job_action => vwhat,
-                                START_DATE => sysdate,
-                                REPEAT_INTERVAL => 'FREQ = HOURLY; INTERVAL = 3',
-                                enabled=>true);
-       log_message('add_instance_job','adding scheduler job sash_pkg_get_RMAN_STAT_' || v_db_link,'I');
     exception when others then
             log_message('add_instance_job', SUBSTR(SQLERRM, 1 , 1000) ,'E');
             RAISE_APPLICATION_ERROR(-20031,'SASH add_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
-
-PROCEDURE get_top10 is
- l_dbid number;
- sql_stat varchar2(4000);
- begin
---    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
-    sql_stat:='insert into sash_top10 (dbid,date_snap,sql_id,cpu,user_i_o,system_i_o,administration,other,configuration,application,concurrency,network,total) select * from (
-select * from (
-select :1, sysdate, sql_id, max(oncpu) "CPU" , max(userio) "User I/O", max(systemio)
-"System I/O", max(adm) "Administration", max(other) "Other" , max(conf)
-"Configuration" , max(app) "Application", max(conc) "Concurrency", max(net) "Network" , max(r) "Total"  from (
-select sql_id,
-decode(wait_class, ''ON CPU'', wt, NULL) oncpu,
-decode(wait_class, ''User I/O'', wt, NULL) userio,
-decode(wait_class, ''System I/O'', wt, NULL) systemio,
-decode(wait_class, ''Administrative'', wt, NULL) adm,
-decode(wait_class, ''other'', wt, NULL) other,
-decode(wait_class, ''Configuration'', wt, NULL) conf,
-decode(wait_class, ''application'', wt, NULL) app,
-decode(wait_class, ''Concurrency'', wt, NULL) conc,
-decode(wait_class, ''Network'', wt, NULL) net,
-sum(wt) over (partition by sql_id) r
-from (
-select sql_id, decode(session_state,''WAITING'',wait_class,''ON CPU'') wait_class, count(*) wt
-from sash.sash_all ash, sash_event_names e
-where sample_time >= (sysdate - 60/24/60)
-and e.event# = ash.event# and ash.dbid = e.dbid and ash.dbid = :2
-and sql_id is not null
-group by sql_id, decode(session_state,''WAITING'',wait_class,''ON CPU'')
-) 
-order by sum(wt) over (partition by sql_id) desc
-)
-group by sql_id
-)
-order by "Total" desc
-)
-where rownum < 10';
-
-     for c in (select dbid from sash_targets) loop
-      begin
-          execute immediate sql_stat using c.dbid, c.dbid;
-      exception
-        when dup_val_on_index then
-            sash_repo.log_message('get_top10', 'Duplicate Key ?','W');
-      end;
-     end loop;
-end get_top10;
-
-
 
 end sash_repo;
 /
