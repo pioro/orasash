@@ -16,10 +16,10 @@ create or replace procedure kill_sash_session as
 		dbms_output.put_line(a.ss);
 		vsql:='alter system kill session ' || a.ss ;
 		dbms_output.put_line(vsql);
-		insert into &SASH_USER.sash_log (action, message,result) values ('kill_sash_session','killing job ' || vsql, 'I');		
+		insert into &&SASH_USER..sash_log (action, message,result) values ('kill_sash_session','killing job ' || vsql, 'I');		
 		execute immediate vsql ;
 	end loop;
 end;
 /
 
-grant execute on kill_sash_session to &SASH_USER;
+grant execute on kill_sash_session to &&SASH_USER;

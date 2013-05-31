@@ -87,7 +87,7 @@ FUNCTION get_dbid(v_dblink varchar2) return number is
 end get_dbid;
 
 FUNCTION get_version(v_dblink varchar2) return varchar2 is
-    l_ver varchar2(8);
+    l_ver sash_targets.version%type;
     begin
       execute immediate 'select version from sash_targets where db_link = '''||v_dblink||'''' into l_ver;
       return l_ver;

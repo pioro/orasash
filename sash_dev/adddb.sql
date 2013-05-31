@@ -22,7 +22,12 @@ SET TERMOUT ON
 
 accept PORT default 1521 prompt "Enter listener port number [default 1521] "
 accept SASHPASS prompt "Enter SASH password on target database "
-set term off
+--set term off
+--- set term off
+column f_st new_value v_dblink
+select substr('&DBNAME' || '_' || replace('&HOST1','.','_'),1,30) f_st from dual;
+
+
 spool setup.sql
 select 'exec sash_repo.add_db(''&' || 'HOST' || rownum || ''', ' || &PORT || ', ''&SASHPASS'', ''&DBNAME'', ''&' || 'INST' || rownum || ''',' || rownum || ', null);' from all_source where rownum <= &INST_NUM;
 select 'exec sash_pkg.configure_db(''&V_DBLINK'');' from dual;

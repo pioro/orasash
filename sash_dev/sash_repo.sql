@@ -378,7 +378,8 @@ s_version sash_targets.version%TYPE;
 
 begin
     v_dblink_target:='(DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST =' || v_host || ')(PORT = ' || v_port || ')))(CONNECT_DATA = (SID = ' || v_sid || ')))';
-    v_dblink := v_db_name || v_inst_num || replace(substr(v_host,1,8),'.','_');
+    --v_dblink := v_db_name || v_inst_num || replace(substr(v_host,1,8),'.','_');
+    v_dblink := substr(v_db_name || '_' || replace(v_host,'.','_'),1,30);
     begin
         execute immediate 'drop database link ' || v_dblink;
         dbms_output.put_line('Link dropped');
@@ -397,22 +398,33 @@ begin
 end;
 
 procedure remove_instance_job (v_dbname varchar2, v_inst_num number)  is
- v_db_link varchar2(4000);
+ v_dbid number;
 begin
- select db_link into v_db_link from sash_targets where dbname = v_dbname and inst_num = v_inst_num; 
- dbms_scheduler.drop_job(job_name => 'sash_pkg_collect_' || v_db_link);
- log_message('remove_instance_job','removing scheduler job sash_pkg_collect_' || v_db_link ,'I');
- dbms_scheduler.drop_job(job_name => 'sash_pkg_get_all_' || v_db_link);
- log_message('remove_instance_job','removing scheduler job sash_pkg_get_all__' || v_db_link,'I');
+ select dbid into v_dbid from sash_targets where dbname = v_dbname and inst_num = v_inst_num; 
+ dbms_scheduler.drop_job(job_name => 'sash_pkg_collect_' || v_inst_num || '_' || v_dbid);
+ log_message('remove_instance_job','removing scheduler job sash_pkg_collect_' || v_inst_num || '_' || v_dbid ,'I');
+ dbms_scheduler.drop_job(job_name => 'sash_pkg_get_all_' || v_inst_num || '_' || v_dbid);
+ log_message('remove_instance_job','removing scheduler job sash_pkg_get_all__' || v_inst_num || '_' || v_dbid,'I');
 exception when NO_DATA_FOUND then
- log_message('remove_instance_job','removing scheduler job sash_pkg_get_all__' || v_dbname || v_inst_num || ' failed','E');
+ log_message('remove_instance_job','removing scheduler job sash_pkg_get_all__' || v_inst_num || '_' || v_dbid || ' failed','E');
  RAISE_APPLICATION_ERROR(-20033,'SASH remove_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
+
+-- this is needed to avoid cross reference
+
+FUNCTION get_dbid(v_dblink varchar2) return number is
+    l_dbid number;
+    begin
+      execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+      return l_dbid;
+end get_dbid;
+
 
 procedure add_instance_job (v_dbname varchar2, v_inst_num number, v_db_link varchar2)  is
 vwhat varchar2(4000);
 v_getall number;
 v_startmin number;
+v_dbid number;
 
 begin
     begin
@@ -421,28 +433,31 @@ begin
         exception when NO_DATA_FOUND then 
             v_getall:=15;
     end;
+	v_dbid := get_dbid(v_db_link);
         v_startmin := v_getall * 60;
         vwhat:='begin sash_pkg.collect_ash(1,3600,'''|| v_db_link || ''', '|| v_inst_num || '); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || v_db_link,
+        dbms_scheduler.create_job(job_name => 'sash_pkg_collect_' || v_inst_num || '_' || v_dbid,
                                 job_type => 'PLSQL_BLOCK',
                                 job_action => vwhat,
                                 start_date => sysdate,
                                 repeat_interval => 'FREQ = HOURLY; INTERVAL = 1',
                                 enabled=>true);
-        log_message('add_instance_job','adding scheduler job sash_pkg_collect_' || v_db_link,'I');
+        log_message('add_instance_job','adding scheduler job sash_pkg_collect_' || v_inst_num || '_' || v_dbid,'I');
         
         vwhat:='begin sash_pkg.get_all('''|| v_db_link || ''',' || v_inst_num || '); end;';
-        dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || v_db_link,
+        dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || v_inst_num || '_' || v_dbid,
                               job_type=>'PLSQL_BLOCK',
                               job_action=> vwhat,
                               start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
-        log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_db_link,'I');
+        log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_inst_num || '_' || v_dbid,'I');
     exception when others then
             log_message('add_instance_job', SUBSTR(SQLERRM, 1 , 1000) ,'E');
             RAISE_APPLICATION_ERROR(-20031,'SASH add_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
+
+
 
 end sash_repo;
 /
