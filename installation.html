@@ -152,11 +152,25 @@ I 2011-11-24 11:07:21       create_repository_jobs                           add
 
 
 		</ol>
-	  <h3>Known issues</h3>
+	  <h3>Changes</h3>
+	  <h4>v.2.3</h4>
+	  <ol>
+	  <li>DBID is used in job name togheter with host name - DB with same name can be monitored in one schema</li>
+	  <li>Known issues from v.2.3 are fixed</li>
+	  <li>minor fixed in installed</li>
+	  </ol>
+		<h3>Known issues</h3>
+	  <h4>v.2.3</h4>
 	  <ol>
 	  <li>There are errors if you try to install packages in different schema name - use sash as schema name or
 	  comment out line <i>sys.kill_sash_session;</i> in <i>sash_repo.stop_collecting_jobs</i> - will be fixed in 2.3.1</li>
 	  <li>If can't add two databases with same name to one repository - will be fixed in 2.3.1</li>
+	  </ol>
+	  <h4>v.2.3.1</h4>
+	  <ol>
+	  <li>Duplicated SQL_ID for same plan and cursor in RAC environment - probably issue for older version as well</li>
+	  <li>sash_xplan is displaying duplicated lines when RAC is monitored - root cause above</li>
+	  </ol>
 	  </section>
       <footer>
       </footer>
