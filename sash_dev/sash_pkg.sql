@@ -60,17 +60,19 @@ show errors
 CREATE OR REPLACE PACKAGE BODY sash_pkg AS
 
 procedure configure_db(v_dblink varchar2) is 
+l_dblink varchar2(40);
 begin
+    l_dblink := replace(v_dblink,'-','_');
     sash_repo.log_message('configure_db', 'get_event_names' ,'I');
-    sash_pkg.get_event_names(v_dblink);
+    sash_pkg.get_event_names(l_dblink);
     sash_repo.log_message('configure_db', 'get_users' ,'I');
-    sash_pkg.get_users(v_dblink);
+    sash_pkg.get_users(l_dblink);
     sash_repo.log_message('configure_db', 'get_params' ,'I');
-    sash_pkg.get_params(v_dblink);
+    sash_pkg.get_params(l_dblink);
     sash_repo.log_message('configure_db', 'get_data_files' ,'I');
-    sash_pkg.get_data_files(v_dblink);
+    sash_pkg.get_data_files(l_dblink);
     sash_repo.log_message('configure_db', 'get_metrics' ,'I');
-    sash_pkg.get_metrics(v_dblink);
+    sash_pkg.get_metrics(l_dblink);
     commit; 
 exception
     when others then
@@ -144,9 +146,12 @@ PROCEDURE get_metrics(v_dblink varchar2) is
         ''Physical Writes Per Sec'',
         ''Redo Generated Per Sec'',
         ''Redo Generated Per Txn'',
+        ''Redo Writes Per Sec'',
         ''Logons Per Sec'',
         ''User Calls Per Sec'',
+        ''User Commits Per Sec'',
         ''Logical Reads Per Txn'',
+        ''Logical Reads Per Sec'',
         ''Total Parse Count Per Txn'',
         ''Network Traffic Volume Per Sec'',
         ''Enqueue Requests Per Txn'',
@@ -167,17 +172,21 @@ end get_metrics;
 
 PROCEDURE set_dbid(v_dblink varchar2) is
    l_dbid number;
+   l_inst number;
    cnt number;
-   begin 
-     execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+   l_dblink varchar2(40);
+   begin
+     l_dblink := replace(v_dblink,'-','_'); 
+     execute immediate 'select dbid  from sys.v_$database@'||l_dblink into l_dbid;
+     execute immediate 'select instance_number from sys.v_$instance@'||l_dblink into l_inst;
      select count(*) into cnt from 
          sash_target;
      if cnt = 0 then 
          insert into 
-            sash_target ( dbid )
-            values (l_dbid);
+            sash_target ( dbid, inst_num )
+            values (l_dbid, l_inst);
      else
-         update sash_target set dbid = l_dbid;     
+         update sash_target set dbid = l_dbid, inst_num = l_inst;     
      end if;
 end set_dbid;
 

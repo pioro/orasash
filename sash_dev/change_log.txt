@@ -1,5 +1,6 @@
 Change Log:
 
+2.3.1
 repo_schema.sql
 - new column in sashX table - osuser varchar2(30)
 - new column in sash_event_names - event_id  number
@@ -18,5 +19,48 @@ installation script
 
 
 If you want to keep old data with new version of sash you need to do all 3 changes from repo_schema.sql manually.
+
+
+
+2.3.2
+sash_xplan.sql
+- fix for duplicated sql_id / plan_hash for RAC monitoring 
+- view SASH_PLAN_TABLE moved from repo_schema.sql
+
+sash_pkg.sql
+- fix for hostname with dash
+
+sash_repo.sql
+- fix for hostname with dash
+
+Number of metric changed - steps to run if you upgraded from lower version
+
+PROD_SASH@XE  > delete from sash_sysmetric_names where dbid = <dbid>;
+
+21 rows deleted.
+
+PROD_SASH@XE  > commit;
+
+Commit complete.
+
+PROD_SASH@XE  > exec sash_pkg.get_metrics('<db_link>')
+
+PL/SQL procedure successfully completed.
+
+PROD_SASH@XE  > select * from sash_sysmetric_names where dbid = <dbid>;
+
+...
+
+24 rows selected.
+
+repo_schema.sql
+- add inst_num column to sash_target table
+- all views are using dbid and inst_num - so if you want to consolidate
+  results from RAC use raw sash tables
+- split views to other file
+
+
+switchdb.sql / current.sql 
+- instance switch added
 
 Marcin
