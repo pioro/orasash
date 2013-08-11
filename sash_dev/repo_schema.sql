@@ -393,7 +393,10 @@ create table sash_objs(
 create unique index sash_objs_i on sash_objs
       (dbid, object_id);
 
-create table sash_target (dbid number);
+create table sash_target (
+  dbid number,
+  inst_num number
+);
  
 create table sash_targets (
     dbid number,
@@ -694,50 +697,6 @@ create or replace view dba_data_files as select * from sash_data_files
 create or replace view all_objects as select * from sash_objs
           where dbid = ( select dbid from sash_target);
 	  
-CREATE OR REPLACE FORCE VIEW SASH_PLAN_TABLE (STATEMENT_ID, PLAN_ID, TIMESTAMP, REMARKS, OPERATION, OPTIONS, OBJECT_NODE, 
-OBJECT_OWNER, OBJECT_NAME, OBJECT_ALIAS, OBJECT_INSTANCE, OBJECT_TYPE, OPTIMIZER,
- SEARCH_COLUMNS, ID, PARENT_ID, DEPTH, POSITION, COST, CARDINALITY, BYTES, OTHER_TAG, PARTITION_START, PARTITION_STOP, 
- PARTITION_ID, OTHER, OTHER_XML, DISTRIBUTION, CPU_COST, IO_COST, TEMP_SPACE, 
- ACCESS_PREDICATES, FILTER_PREDICATES, PROJECTION, TIME, QBLOCK_NAME) AS
-  select
- SQL_ID             ,
- PLAN_HASH_VALUE    ,
- sysdate,
- null ,
- OPERATION,
- OPTIONS   ,
- OBJECT_NODE,
- OBJECT_OWNER,
- OBJECT_NAME  ,
- 'ALIAS',
- OBJECT_INSTANCE    ,
- OBJECT_TYPE        ,
- OPTIMIZER          ,
- SEARCH_COLUMNS     ,
- ID                 ,
- PARENT_ID          ,
- depth,
- POSITION           ,
- COST               ,
- CARDINALITY        ,
- BYTES              ,
- OTHER_TAG          ,
- PARTITION_START    ,
- PARTITION_STOP     ,
- PARTITION_ID       ,
- OTHER              ,
- null           ,
- DISTRIBUTION       ,
- CPU_COST           ,
- IO_COST            ,
- TEMP_SPACE         ,
- ACCESS_PREDICATES  ,
- FILTER_PREDICATES  ,
- null,
-1,
- null
- from sash_sqlplans;
-
 	  
 create or replace view dba_hist_sysmetric_history as
 select snap_id, n.dbid, inst_id INSTANCE_NUMBER, begin_time, begin_time + INTSIZE_CSEC/100/24/3600 end_time, INTSIZE_CSEC INTSIZE, GROUP_ID, n.METRIC_ID, METRIC_NAME, VALUE, METRIC_UNIT from SASH_SYSMETRIC_NAMES n,
