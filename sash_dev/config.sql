@@ -34,11 +34,9 @@ prompt "------------------------------------------------------------------------
 set term off
 
 @repo_schema.sql
-@repo_views.sql
 @sash_repo.sql
 @sash_pkg.sql
 @sash_xplan.sql
-@sash_awr_views.sql
 set term on
 
 prompt "------------------------------------------------------------------------------------"

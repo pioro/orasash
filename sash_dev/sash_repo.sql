@@ -47,7 +47,6 @@ CREATE OR REPLACE PACKAGE BODY sash_repo AS
 procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2) is
 PRAGMA AUTONOMOUS_TRANSACTION; 
 begin
-    dbms_output.put_line(vmessage || ' ' || vresults);
     insert into sash_log (log_id, action, message,result) values (log_id_seq.nextval, vaction, vmessage,vresults);
     commit;
 end;
@@ -380,7 +379,7 @@ s_version sash_targets.version%TYPE;
 begin
     v_dblink_target:='(DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST =' || v_host || ')(PORT = ' || v_port || ')))(CONNECT_DATA = (SID = ' || v_sid || ')))';
     --v_dblink := v_db_name || v_inst_num || replace(substr(v_host,1,8),'.','_');
-    v_dblink := substr(v_db_name || '_' || replace(replace(v_host,'.','_'),'-','_'),1,30);
+    v_dblink := substr(v_db_name || '_' || replace(v_host,'.','_'),1,30);
     begin
         execute immediate 'drop database link ' || v_dblink;
         dbms_output.put_line('Link dropped');
@@ -434,8 +433,6 @@ begin
         exception when NO_DATA_FOUND then 
             v_getall:=15;
     end;
-        dbms_output.put_line(v_db_link || ' ' );
-        -- problem if target is down - add exception
 	v_dbid := get_dbid(v_db_link);
         v_startmin := v_getall * 60;
         vwhat:='begin sash_pkg.collect_ash(1,3600,'''|| v_db_link || ''', '|| v_inst_num || '); end;';
