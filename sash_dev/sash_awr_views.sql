@@ -227,3 +227,30 @@ METRIC_ID        ,
 METRIC_NAME      ,
 METRIC_UNIT;
 
+
+create or replace view dba_hist_event_histogram (
+ SNAP_ID         ,
+ DBID            ,
+ INSTANCE_NUMBER ,
+ EVENT_ID        ,
+ EVENT_NAME      ,
+ WAIT_CLASS_ID   ,
+ WAIT_CLASS      ,
+ WAIT_TIME_MILLI ,
+ WAIT_COUNT      
+) as 
+select h.SNAP_ID, h.DBID, h.INST_ID ,e.EVENT_ID, NAME, null, WAIT_CLASS, WAIT_TIME_MILLI, WAIT_COUNT
+from sash_event_names e, sash_event_histogram_all h, sash_target t
+where e.dbid = h.dbid and e.event# = h.event# and t.dbid = h.dbid and t.inst_num = h.INST_ID;
+
+create or replace view dba_hist_sys_time_model (
+SNAP_ID        , 
+DBID           , 
+INSTANCE_NUMBER,
+STAT_ID        ,
+STAT_NAME      ,
+VALUE          
+)
+as
+select snap_id, m.dbid, INST_ID, m.stat_id, STAT_NAME, value from sash_sys_time_model m, sash_sys_time_name n,  sash_target t
+where m.STAT_ID = n.STAT_ID and t.dbid = m.dbid and t.inst_num = m.INST_ID;

@@ -51,6 +51,9 @@ grant select on v_$system_event to sash;
 grant select on v_$sysmetric_history to sash;
 grant select on v_$iostat_function to sash;
 grant select on v_$sqlstats to sash;
+grant select on v_$event_histogram to sash;
+grant select on v_$sys_time_model to sash;
+grant select on v_$osstat to sash;
  
 
 prompt "SASHNOW view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"

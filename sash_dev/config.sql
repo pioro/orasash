@@ -33,6 +33,7 @@ prompt  Installing SASH objects into &SASH_USER schema
 prompt "------------------------------------------------------------------------------------"
 set term off
 
+@repo_helpers.sql
 @repo_schema.sql
 @repo_views.sql
 @sash_repo.sql

@@ -39,9 +39,9 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure get_sqltxt(l_dbid number, v_dblink varchar2) ;
     procedure get_sqlstats(l_hist_samp_id number, l_dbid number, v_dblink varchar2, v_inst_num number)  ;
     procedure get_sqlid(l_dbid number, v_sql_id varchar2, v_dblink varchar2) ;
-    procedure get_sqlids(l_dbid number);
+    procedure get_sqlids(l_dbid number, v_inst_num number);
     procedure get_data_files(v_dblink varchar2)  ;
-    procedure get_sqlplans(l_hist_samp_id number, l_dbid number,v_dblink varchar2) ;
+    procedure get_sqlplans(l_hist_samp_id number, l_dbid number,v_dblink varchar2, v_inst_num number) ;
     procedure get_extents(v_dblink varchar2);
     procedure get_event_names(v_dblink varchar2)  ;
     procedure collect_other(v_sleep number, loops number, v_dblink varchar2, vinstance number);
@@ -53,6 +53,9 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
     procedure get_metrics(v_dblink varchar2) ;
     procedure collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
+    procedure collect_histogram(v_hist_samp_id number, v_dblink varchar2, vinstance number);
+    procedure osstat(v_hist_samp_id number, v_dblink varchar2, vinstance number);
+    procedure sys_time(v_hist_samp_id number, v_dblink varchar2, vinstance number);
 END sash_pkg;
 /
 show errors
@@ -91,7 +94,7 @@ end get_dbid;
 FUNCTION get_version(v_dblink varchar2) return varchar2 is
     l_ver sash_targets.version%type;
     begin
-      execute immediate 'select version from sash_targets where db_link = '''||v_dblink||'''' into l_ver;
+      execute immediate 'select version from sash_targets where lower(db_link) = lower('''||v_dblink||''')' into l_ver;
       return l_ver;
 end get_version;
 
@@ -167,8 +170,26 @@ PROCEDURE get_metrics(v_dblink varchar2) is
      )';
     exception
         when DUP_VAL_ON_INDEX then
-            sash_repo.log_message('GET_METRICS', 'Already configured ?','W');				  
+            sash_repo.log_message('GET_METRICS', 'Already configured ?','W');
+
+
+    begin
+     execute immediate 'insert into sash_sys_time_name select distinct ' || l_dbid || ',STAT_ID, STAT_NAME from sys.v_$sys_time_model@'||v_dblink;
+    exception
+        WHEN DUP_VAL_ON_INDEX THEN
+            sash_repo.log_message('GET_METRICS', 'Already configured ?','W');
+    end;
+
+            
+    begin
+     EXECUTE IMMEDIATE 'insert into sash_osstat_name select distinct ' || L_DBID || ',OSSTAT_ID, STAT_NAME, COMMENTS, CUMULATIVE from sys.v_$osstat@'||V_DBLINK;
+    exception
+        WHEN DUP_VAL_ON_INDEX THEN
+            sash_repo.log_message('GET_METRICS', 'Already configured ?','W');          
+    end;
+
 end get_metrics;
+
 
 PROCEDURE set_dbid(v_dblink varchar2) is
    l_dbid number;
@@ -298,7 +319,7 @@ exception
         RAISE_APPLICATION_ERROR(-20101, 'SASH get_objs error ' || SUBSTR(SQLERRM, 1 , 1000));    
 end get_objs;
 
-PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number,  v_dblink varchar2) is
+PROCEDURE get_sqlplans(l_hist_samp_id number, l_dbid number,  v_dblink varchar2, v_inst_num number) is
 type sash_sqlrec_type is table of sash_sqlplans%rowtype;
 sash_sqlrec  sash_sqlrec_type := sash_sqlrec_type(); 
 type ctype is ref cursor;
@@ -337,12 +358,13 @@ begin
                            sql.TEMP_SPACE,
                            sql.ACCESS_PREDICATES,
                            sql.FILTER_PREDICATES,
-                           :1
+                           :1,
+			   :2
                     from sys.v_$sql_plan@' || v_dblink || ' sql, sash_hour_sqlid sqlids
                     where sql.sql_id= sqlids.sql_id and sql.plan_hash_value = sqlids.sql_plan_hash_value
                     and not exists (select 1 from sash_sqlplans sqlplans where sqlplans.plan_hash_value = sqlids.sql_plan_hash_value 
-                                             and sqlplans.sql_id = sqlids.sql_id )';
-    open c_sqlplans for sql_stat using l_dbid;
+                                             and sqlplans.sql_id = sqlids.sql_id and inst_id = :3 )';
+    open c_sqlplans for sql_stat using l_dbid, v_inst_num, v_inst_num ;
     fetch c_sqlplans bulk collect into sash_sqlrec;
     forall i in 1 .. sash_sqlrec.count 
              insert into sash_sqlplans values sash_sqlrec(i);          
@@ -448,7 +470,7 @@ begin
          insert into sash_hour_sqlid select sql_id, sql_plan_hash_value from sash where l_dbid = dbid and sql_id = v_sql_id;
 end get_sqlid;	   
 
-PROCEDURE get_sqlids(l_dbid number) is
+PROCEDURE get_sqlids(l_dbid number, v_inst_num number) is
           v_sqlid  number;
           v_sqllimit number:=0;
           v_lastall number;
@@ -465,15 +487,18 @@ PROCEDURE get_sqlids(l_dbid number) is
             select to_number(value) into v_lastall from sash_configuration where param='STATFREQ';
             dbms_output.put_line('v_lastall ' || v_lastall);
             exception when NO_DATA_FOUND then 
-              v_lastall:=1;
+              v_lastall:=15;
          end;
+	 dbms_output.put_line('v_lastall ' || v_lastall || 'v limit ' || v_sqllimit);
          insert into sash_hour_sqlid select distinct sql_id, sql_plan_hash_value from (
                           select count(*) cnt, sql_id, sql_plan_hash_value
                           from sash 
                           where l_dbid = dbid
                              and sql_id != '0'
                              --and sql_plan_hash_value != '0'
-                             and sample_time > sysdate - v_lastall/24
+                             and sample_time > sysdate - v_lastall/24/60
+                             --and sample_time > sysdate - 1/24 
+ 			     and inst_id = v_inst_num
                           group by sql_id, sql_plan_hash_value
                           order by cnt desc )
                         where rownum < v_sqllimit;
@@ -648,7 +673,7 @@ begin
     fetch sash_cur bulk collect into io_event_rec;
     forall i in 1..io_event_rec.count 
         insert into sash_io_system_event values io_event_rec(i);
-    commit;
+    --commit;
     close sash_cur;
 exception
     when others then
@@ -675,13 +700,38 @@ begin
     fetch sash_cur bulk collect into session_rec;
     forall i in 1..session_rec.count 
         insert into sash_sysmetric_history values session_rec(i);
-    commit;
+    --commit;
     close sash_cur;
 exception
     when others then
         sash_repo.log_message('collect_metric', SUBSTR(SQLERRM, 1 , 1000),'E');
         RAISE_APPLICATION_ERROR(-20108, 'SASH collect_metric error ' || SUBSTR(SQLERRM, 1 , 1000));      
 end collect_metric;
+
+
+procedure collect_histogram(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
+type sash_event_histogram_type is table of sash_event_histogram%rowtype;
+session_rec sash_event_histogram_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;
+l_dbid number;
+l_time date;
+
+begin
+    l_dbid:=get_dbid(v_dblink);
+    sql_stat := 'select  :1, :2, :3, EVENT#, WAIT_TIME_MILLI, WAIT_COUNT from sys.v_$event_histogram@'|| v_dblink;
+    open sash_cur FOR sql_stat using v_hist_samp_id, l_dbid, vinstance;
+    fetch sash_cur bulk collect into session_rec;
+    forall i in 1..session_rec.count
+        insert into sash_event_histogram values session_rec(i);
+    --commit;
+    close sash_cur;
+exception
+    when others then
+        sash_repo.log_message('collect_histogram', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20108, 'SASH collect_metric error ' || SUBSTR(SQLERRM, 1 , 1000));
+end collect_histogram;
 
 
 procedure collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
@@ -708,6 +758,51 @@ exception
         RAISE_APPLICATION_ERROR(-20109, 'SASH collect_iostat error ' || SUBSTR(SQLERRM, 1 , 1000));     
 end collect_iostat;
 
+procedure osstat(v_hist_samp_id number, v_dblink varchar2, vinstance number) is 
+type sash_osstat_type is table of sash_osstat%rowtype;
+session_rec sash_osstat_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;
+l_dbid number;
+
+begin
+    l_dbid:=get_dbid(v_dblink);
+    sql_stat := 'select :1, :2, :3, OSSTAT_ID, VALUE from sys.v_$osstat@'|| v_dblink;
+    open sash_cur FOR sql_stat using v_hist_samp_id, l_dbid, vinstance;
+    fetch sash_cur bulk collect into session_rec;
+    forall i in 1..session_rec.count
+        insert into sash_osstat values session_rec(i);
+    commit;
+    close sash_cur;
+exception
+    when others then
+        sash_repo.log_message('collect_osstat', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20109, 'SASH collect_osstat error ' || SUBSTR(SQLERRM, 1 , 1000));
+end;
+
+procedure sys_time(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
+type sash_sys_time_model_type is table of sash_sys_time_model%rowtype;
+session_rec sash_sys_time_model_type;
+sql_stat varchar2(4000);
+TYPE SashcurTyp IS REF CURSOR;
+sash_cur   SashcurTyp;
+l_dbid number;
+
+begin
+    l_dbid:=get_dbid(v_dblink);
+    sql_stat := 'select :1, :2, :3, STAT_ID, VALUE from sys.v_$sys_time_model@'|| v_dblink;
+    open sash_cur FOR sql_stat using v_hist_samp_id, l_dbid, vinstance;
+    fetch sash_cur bulk collect into session_rec;
+    forall i in 1..session_rec.count
+        insert into sash_sys_time_model values session_rec(i);
+    commit;
+    close sash_cur;
+exception
+    when others then
+        sash_repo.log_message('collect_sys_time', SUBSTR(SQLERRM, 1 , 1000),'E');
+        RAISE_APPLICATION_ERROR(-20109, 'SASH collect_sys_time error ' || SUBSTR(SQLERRM, 1 , 1000));
+end;
 
 procedure collect_stats(v_dblink varchar2, vinstance number) is
 type sash_instance_stats_type is table of sash_instance_stats%rowtype;
@@ -744,6 +839,7 @@ begin
     for l in 1..loops loop
         collect_stats(v_dblink, vinstance);
         collect_io_event(v_dblink, vinstance,1);
+        commit;
         dbms_lock.sleep(v_sleep);
     end loop;   
 end collect_other;
@@ -758,7 +854,7 @@ end collect_other;
           get_sqlid(l_dbid,v_sql_id, v_dblink);
           get_sqltxt(l_dbid,v_dblink);
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
-          get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
+          get_sqlplans(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
           insert into sash_hist_sample values (l_hist_samp_id, l_dbid, v_inst_num, sysdate);
           commit;
        end get_one;	
@@ -771,13 +867,16 @@ end collect_other;
           select hist_id_seq.nextval into l_hist_samp_id from dual;
           l_ver:=substr(sash_pkg.get_version(v_dblink),0,2);
           l_dbid:=get_dbid(v_dblink);
-          get_sqlids(l_dbid);
+          get_sqlids(l_dbid, v_inst_num);
           get_sqltxt(l_dbid,v_dblink);
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
-          get_sqlplans(l_hist_samp_id, l_dbid,v_dblink);
+          get_sqlplans(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
           get_objs(l_dbid, v_dblink);
           collect_metric(l_hist_samp_id, v_dblink , v_inst_num );
           collect_io_event(v_dblink, v_inst_num,l_hist_samp_id);
+          collect_histogram(l_hist_samp_id, v_dblink, v_inst_num);
+          sys_time(l_hist_samp_id, v_dblink, v_inst_num);
+          osstat(l_hist_samp_id, v_dblink, v_inst_num);
           if (l_ver = '11') then
             collect_iostat(l_hist_samp_id, v_dblink , v_inst_num );
           end if ;

@@ -40,7 +40,7 @@ OBJECT_OWNER, OBJECT_NAME, OBJECT_ALIAS, OBJECT_INSTANCE, OBJECT_TYPE, OPTIMIZER
  null,
 1,
  null
- from sash_sqlplans;
+ from sash_sqlplans where inst_id = (select inst_num from sash_target);
 
 CREATE OR REPLACE PACKAGE sash_xplan AS		  
 		  function display(v_sql_id varchar2, v_plan_hash varchar2, v_format in varchar2 default 'TYPICAL') return sys.DBMS_XPLAN_TYPE_TABLE pipelined;

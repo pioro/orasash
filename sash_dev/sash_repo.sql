@@ -87,9 +87,22 @@ begin
     l_text:='create or replace view sash as select * from sash'||to_char(l_day);
     execute immediate l_text;
 
+-- sash_event_histogram
+    l_text:='truncate table sash_event_histogram'||to_char(l_day);
+    execute immediate l_text;
+    l_text:='create or replace view sash_event_histogram as select * from sash_event_histogram'||to_char(l_day);
+    execute immediate l_text;
+
+-- sash_sqlstats
+    l_text:='truncate table sash_sqlstats'||to_char(l_day);
+    execute immediate l_text;
+    l_text:='create or replace view sash_sqlstats as select * from sash_sqlstats'||to_char(l_day);
+    execute immediate l_text;
+
+
 -- delete rows from not ASH tables
 
-    delete from SASH_SQLSTATS where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
+--    delete from SASH_SQLSTATS where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
     delete from SASH_IO_SYSTEM_EVENT where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
     delete from SASH_SYSMETRIC_HISTORY where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
     commit;

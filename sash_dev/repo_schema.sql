@@ -94,72 +94,13 @@ create table sash1 (
 );
 
 -- create rest of active sessions tables to simulate poor man partitioning
+-- this is improved now thanks to helpers procedures
 
-create table sash2 as select * from sash1 where rownum <1;
-create table sash3 as select * from sash1 where rownum <1;
-create table sash4 as select * from sash1 where rownum <1;
-create table sash5 as select * from sash1 where rownum <1;
-create table sash6 as select * from sash1 where rownum <1;
-create table sash7 as select * from sash1 where rownum <1;
-create table sash8 as select * from sash1 where rownum <1;		 
-create table sash9 as select * from sash1 where rownum <1;
-create table sash10 as select * from sash1 where rownum <1;
-create table sash11 as select * from sash1 where rownum <1;
-create table sash12 as select * from sash1 where rownum <1;
-create table sash13 as select * from sash1 where rownum <1;
-create table sash14 as select * from sash1 where rownum <1;
-create table sash15 as select * from sash1 where rownum <1;
-create table sash16 as select * from sash1 where rownum <1;
-create table sash17 as select * from sash1 where rownum <1;
-create table sash18 as select * from sash1 where rownum <1;
-create table sash19 as select * from sash1 where rownum <1;
-create table sash20 as select * from sash1 where rownum <1;
-create table sash21 as select * from sash1 where rownum <1;
-create table sash22 as select * from sash1 where rownum <1;
-create table sash23 as select * from sash1 where rownum <1;
-create table sash24 as select * from sash1 where rownum <1;
-create table sash25 as select * from sash1 where rownum <1;
-create table sash26 as select * from sash1 where rownum <1;
-create table sash27 as select * from sash1 where rownum <1;
-create table sash28 as select * from sash1 where rownum <1;
-create table sash29 as select * from sash1 where rownum <1;
-create table sash30 as select * from sash1 where rownum <1;
-create table sash31 as select * from sash1 where rownum <1;
-
--- create indexes 		 
-create index sash_1i on sash1(sample_time,dbid) ;
-create index sash_2i on sash2(sample_time,dbid) ;
-create index sash_3i on sash3(sample_time,dbid) ;
-create index sash_4i on sash4(sample_time,dbid) ;
-create index sash_5i on sash5(sample_time,dbid) ;
-create index sash_6i on sash6(sample_time,dbid) ;
-create index sash_7i on sash7(sample_time,dbid) ;
-create index sash_8i on sash8(sample_time,dbid) ;
-create index sash_9i on sash9(sample_time,dbid) ;
-create index sash_10i on sash10(sample_time,dbid) ;
-create index sash_11i on sash11(sample_time,dbid) ;
-create index sash_12i on sash12(sample_time,dbid) ;
-create index sash_13i on sash13(sample_time,dbid) ;
-create index sash_14i on sash14(sample_time,dbid) ;
-create index sash_15i on sash15(sample_time,dbid) ;
-create index sash_16i on sash16(sample_time,dbid) ;
-create index sash_17i on sash17(sample_time,dbid) ;
-create index sash_18i on sash18(sample_time,dbid) ;
-create index sash_19i on sash19(sample_time,dbid) ;
-create index sash_20i on sash20(sample_time,dbid) ;
-create index sash_21i on sash21(sample_time,dbid) ;
-create index sash_22i on sash22(sample_time,dbid) ;
-create index sash_23i on sash23(sample_time,dbid) ;
-create index sash_24i on sash24(sample_time,dbid) ;
-create index sash_25i on sash25(sample_time,dbid) ;
-create index sash_26i on sash26(sample_time,dbid) ;
-create index sash_27i on sash27(sample_time,dbid) ;
-create index sash_28i on sash28(sample_time,dbid) ;
-create index sash_29i on sash29(sample_time,dbid) ;
-create index sash_30i on sash30(sample_time,dbid) ;
-create index sash_31i on sash31(sample_time,dbid) ;
-
+exec create_partitions('sash',31);
+exec create_indexes('sash',31,'sash_i1','sample_time,dbid');
 create or replace view sash as select * from sash1;
+
+-- rest of tables
 
 create table sash_log
    (log_id       number,
@@ -170,7 +111,7 @@ create table sash_log
 	
 create or replace public synonym sash_log for sash_log;
 
-create global temporary table sash_hour_sqlid (sql_id varchar2(13), SQL_PLAN_HASH_VALUE number) on commit preserve rows;			
+create global temporary table sash_hour_sqlid (sql_id varchar2(13), SQL_PLAN_HASH_VALUE number) on commit delete rows;			
 	
 create table sash_stats
 	(
@@ -230,7 +171,9 @@ create index sash_hist_sample_i1 on sash_hist_sample (dbid, instance_number, his
       temp_space      numeric,
       access_predicates varchar2(4000),
       filter_predicates varchar2(4000),
-      dbid number);
+      dbid number,
+      inst_id number
+);
 	  
 create index SASH_SQLPLANS_ID1 on SASH_SQLPLANS (sql_id, plan_hash_value, dbid);			  
  
@@ -310,7 +253,9 @@ create table sash_sqltxt (
 
 create index sash_sqltxt_1 on sash_sqltxt(SQL_ID, DBID);
 
-create table sash_sqlstats (
+-- adding poor man partitning to sql stats
+
+create table sash_sqlstats1 (
  SNAP_ID                       NUMBER,
  DBID                          NUMBER,
  INSTANCE_NUMBER               NUMBER,
@@ -378,10 +323,11 @@ create table sash_sqlstats (
  physical_write_bytes_delta    NUMBER 
 );
 
-create index sash_sqlstats_i1 on sash_sqlstats (snap_id);
+exec create_partitions('sash_sqlstats',31);
+exec create_indexes('sash_sqlstats',31,'sash_sqlstats_i1','snap_id');
+exec create_indexes('sash_sqlstats',31,'sash_sqlstats_i2','sql_id, plan_hash_value');
+create or replace view sash_sqlstats as select * from sash_sqlstats1;
 
-create index sash_sqlstats_i2 on sash_sqlstats (sql_id, plan_hash_value);
- 
 create table sash_objs(
       dbid number,  
       object_id number, 
@@ -498,73 +444,56 @@ create table SASH_IOFUNCSTATS (
  WAIT_TIME               NUMBER
 );
 
- 
-create or replace force view sash_all
-as
-   select * from sash1
-   union all
-   select * from sash2
-   union all
-   select * from sash3
-   union all
-   select * from sash4
-   union all
-   select * from sash5
-   union all
-   select * from sash6
-   union all
-   select *from sash7
-   union all
-   select * from sash8
-   union all
-   select * from sash9
-   union all
-   select * from sash10
-   union all
-   select * from sash11
-   union all
-   select * from sash12
-   union all
-   select * from sash13
-   union all
-   select * from sash14
-   union all
-   select * from sash15
-   union all
-   select * from sash16
-   union all
-   select * from sash17
-   union all
-   select * from sash18
-   union all
-   select * from sash19
-   union all
-   select * from sash20
-   union all
-   select * from sash21
-   union all
-   select * from sash22
-   union all
-   select * from sash23
-   union all
-   select * from sash24
-   union all
-   select * from sash25
-   union all
-   select * from sash26
-   union all
-   select * from sash27
-   union all
-   select * from sash28
-   union all
-   select * from sash29
-   union all
-   select * from sash30
-   union all
-   select * from sash31;
 
+create table sash_event_histogram1(
+SNAP_ID          NUMBER,
+DBID             NUMBER,
+INST_ID          NUMBER,
+EVENT#           NUMBER,
+WAIT_TIME_MILLI  NUMBER,
+WAIT_COUNT       NUMBER
+);
+
+
+exec create_partitions('sash_event_histogram',31);
+exec create_indexes('sash_event_histogram',31,'sash_event_histogram_i1','dbid, EVENT#');
+exec create_indexes('sash_event_histogram',31,'sash_event_histogram_i2','snap_id,dbid, EVENT#');
+create or replace view sash_event_histogram as select * from sash_event_histogram1;
+
+create table sash_sys_time_name (
+DBID            NUMBER,
+STAT_ID		NUMBER,
+STAT_NAME	VARCHAR2(64)
+);
+
+create table sash_osstat_name (
+DBID            NUMBER,
+OSSTAT_ID       NUMBER,
+STAT_NAME	VARCHAR2(64),
+COMMENTS	VARCHAR2(64),
+CUMULATIVE      VARCHAR2(3)
+);
+
+create table sash_sys_time_model (
+SNAP_ID          NUMBER,
+DBID             NUMBER,
+INST_ID          NUMBER,
+STAT_ID		 NUMBER,
+VALUE		 NUMBER
+);
+
+create table sash_osstat (
+SNAP_ID          NUMBER,
+DBID             NUMBER,
+INST_ID          NUMBER,
+OSSTAT_ID        NUMBER,
+VALUE            NUMBER
+);
+
+
+ 
 create or replace view v$active_session_history as
-       select
+       D             NUMBER,selec
          ash.dbid            ,
 		 ash.inst_id		 ,
          ash.sample_time     ,
