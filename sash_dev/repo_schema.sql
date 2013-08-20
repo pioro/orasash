@@ -482,6 +482,8 @@ STAT_ID		 NUMBER,
 VALUE		 NUMBER
 );
 
+create index sash_sys_time_model_i1 on sash_sys_time_model(SNAP_ID, DBID, STAT_ID);
+
 create table sash_osstat (
 SNAP_ID          NUMBER,
 DBID             NUMBER,
@@ -490,12 +492,12 @@ OSSTAT_ID        NUMBER,
 VALUE            NUMBER
 );
 
-
+create index sash_osstat_i1 on sash_osstat(SNAP_ID, DBID, OSSTAT_ID);
  
 create or replace view v$active_session_history as
-       D             NUMBER,selec
-         ash.dbid            ,
-		 ash.inst_id		 ,
+       select
+         ash.dbid ,
+	 ash.inst_id   	     ,
          ash.sample_time     ,
          ash.session_id      ,
          ash.session_state   ,
