@@ -1,21 +1,6 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 43 $
--- Last change $Date: 2011-10-27 17:07:43 +0100 (Thu, 27 Oct 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/repo_1_tables.sql $
----------------------------------------------------------------------------------------------------
-
--- (c) Kyle Hailey 2007
--- (c) Marcin Przepiorowski 2010
--- v2.1 Changes: Increase number of tables to poor man paritioning, add configuration tables
--- v2.2 Changes: Schema clean up - hash values, statament id changed to sql_id,
---               sql_id changed to 10g and above format - varachar2(13)
---               new table, sequence and columns for better history clean up - T: sash_hist_sample, S: hist_id_seq C:hist_sample_id
---               new table - sash_extents to keep extentes from target database
--- v2.3 Changes: new fields in SASH table
---               new installation script
---               changes in v$active_session_istory view
---               new tables to keep metrics history
---               new version of sash_sqlstats
+-- (c) Marcin Przepiorowski 2013
+-- v2.4 Initial release
+-- view separated from tables - moved from repo_schema.sql
 
 set term off
 spool exit.sql

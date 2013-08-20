@@ -1,13 +1,9 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 40 $
--- Last change $Date: 2011-08-27 22:19:21 +0100 (Sat, 27 Aug 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/repo_0_user.sql $
----------------------------------------------------------------------------------------------------
-
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
 -- v2.1 Changes: add password and tablespace prompt, add new privileges to sash user on repository
 -- v2.2 Changes: add schema owner as a variable, display more information
+-- v2.3
+-- v2.4
  
  set ver off
 

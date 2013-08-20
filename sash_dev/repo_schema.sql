@@ -1,9 +1,3 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 43 $
--- Last change $Date: 2011-10-27 17:07:43 +0100 (Thu, 27 Oct 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/repo_1_tables.sql $
----------------------------------------------------------------------------------------------------
-
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
 -- v2.1 Changes: Increase number of tables to poor man paritioning, add configuration tables
@@ -16,6 +10,9 @@
 --               changes in v$active_session_istory view
 --               new tables to keep metrics history
 --               new version of sash_sqlstats
+-- v2.4 Changes: new tables for event histogram, osstat and sys_time_model
+--               repository is created using helpers procedures to create "poor man" partitions and indexes
+--               views moved to repo_views.sql
 
 
 set term off

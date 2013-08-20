@@ -1,12 +1,8 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev$
--- Last change $Date$
--- SVN URL $HeadURL$
----------------------------------------------------------------------------------------------------
-
 -- (c) Marcin Przepiorowski 2010
 -- v2.1 Changes: Initial release
--- v2.2 Changes: 
+-- v2.2 Changes:
+-- v2.3 Changes: using SASH_USER instead of hardcoded
+-- v2.4 Changes:
 
 create or replace procedure kill_sash_session as
     -- File Revision $Rev$

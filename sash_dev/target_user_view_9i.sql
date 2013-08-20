@@ -1,9 +1,3 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 37 $
--- Last change $Date: 2011-05-14 17:45:41 +0100 (Sat, 14 May 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/targ_1_userview_9i.sql $
----------------------------------------------------------------------------------------------------
-
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
 -- v2.0 Part of other file
@@ -12,7 +6,7 @@
 -- v2.3 - new fields added - 11g2
 --      - checking if SYS user is used to execute 
 --      - script clean up
-
+-- v2.4 - no changes
 
 set ver off
 set term off
