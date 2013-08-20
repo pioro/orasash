@@ -1,9 +1,3 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 42 $
--- Last change $Date: 2011-10-27 11:03:51 +0100 (Thu, 27 Oct 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/repo_4_packages.sql $
----------------------------------------------------------------------------------------------------
-
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
 -- v2.0 Package deployed on target database, database link pointed to repository 
@@ -18,6 +12,8 @@
 -- v2.3 Changes  - full RAC and multi DB support
 --               - gathering metrics
 --               - logging
+-- v2.4 Changes  - new collection procedures for AWR
+
 
 spool sash_pkg.log
 prompt Crating SASH_PKG package
@@ -54,8 +50,8 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     procedure get_metrics(v_dblink varchar2) ;
     procedure collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
     procedure collect_histogram(v_hist_samp_id number, v_dblink varchar2, vinstance number);
-    procedure osstat(v_hist_samp_id number, v_dblink varchar2, vinstance number);
-    procedure sys_time(v_hist_samp_id number, v_dblink varchar2, vinstance number);
+    procedure collect_osstat(v_hist_samp_id number, v_dblink varchar2, vinstance number);
+    procedure collect_systime(v_hist_samp_id number, v_dblink varchar2, vinstance number);
 END sash_pkg;
 /
 show errors
@@ -758,7 +754,7 @@ exception
         RAISE_APPLICATION_ERROR(-20109, 'SASH collect_iostat error ' || SUBSTR(SQLERRM, 1 , 1000));     
 end collect_iostat;
 
-procedure osstat(v_hist_samp_id number, v_dblink varchar2, vinstance number) is 
+procedure collect_osstat(v_hist_samp_id number, v_dblink varchar2, vinstance number) is 
 type sash_osstat_type is table of sash_osstat%rowtype;
 session_rec sash_osstat_type;
 sql_stat varchar2(4000);
@@ -781,7 +777,7 @@ exception
         RAISE_APPLICATION_ERROR(-20109, 'SASH collect_osstat error ' || SUBSTR(SQLERRM, 1 , 1000));
 end;
 
-procedure sys_time(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
+procedure collect_systime(v_hist_samp_id number, v_dblink varchar2, vinstance number) is
 type sash_sys_time_model_type is table of sash_sys_time_model%rowtype;
 session_rec sash_sys_time_model_type;
 sql_stat varchar2(4000);
@@ -875,8 +871,8 @@ end collect_other;
           collect_metric(l_hist_samp_id, v_dblink , v_inst_num );
           collect_io_event(v_dblink, v_inst_num,l_hist_samp_id);
           collect_histogram(l_hist_samp_id, v_dblink, v_inst_num);
-          sys_time(l_hist_samp_id, v_dblink, v_inst_num);
-          osstat(l_hist_samp_id, v_dblink, v_inst_num);
+          collect_systime(l_hist_samp_id, v_dblink, v_inst_num);
+          collect_osstat(l_hist_samp_id, v_dblink, v_inst_num);
           if (l_ver = '11') then
             collect_iostat(l_hist_samp_id, v_dblink , v_inst_num );
           end if ;

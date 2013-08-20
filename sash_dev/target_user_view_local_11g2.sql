@@ -1,9 +1,3 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 42 $
--- Last change $Date: 2011-10-27 11:03:51 +0100 (Thu, 27 Oct 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/targ_1_userview_11g2.sql $
----------------------------------------------------------------------------------------------------
-
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
 -- v2.0 Part of other file
@@ -12,6 +6,7 @@
 -- v2.3 - new fields added - 11g2
 --      - checking if SYS user is used to execute 
 --      - script clean up
+-- v2.4 - new privileges added
 
 
 set ver off
@@ -51,6 +46,10 @@ grant select on v_$system_event to sash;
 grant select on v_$sysmetric_history to sash;
 grant select on v_$iostat_function to sash;
 grant select on v_$sqlstats to sash;
+grant select on v_$event_histogram to sash;
+grant select on v_$sys_time_model to sash;
+grant select on v_$osstat to sash;
+
  
 
 prompt "SASHNOW view will be created in SYS schema. This view will be accesed by repository database via DB link using user sash"

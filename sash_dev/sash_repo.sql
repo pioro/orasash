@@ -1,9 +1,3 @@
----------------------------------------------------------------------------------------------------
--- File Revision $Rev: 43 $
--- Last change $Date: 2011-10-27 17:07:43 +0100 (Thu, 27 Oct 2011) $
--- SVN URL $HeadURL: https://orasash.svn.sourceforge.net/svnroot/orasash/v2.3/repo_2_pkg.sql $
----------------------------------------------------------------------------------------------------
-
 -- (c) Kyle Hailey 2007
 -- (c) Marcin Przepiorowski 2010
 -- v2.1 Changes: New procedures for stopping and starting jobs, purge procedure extended
@@ -12,7 +6,7 @@
 --               job watchdog added
 --               more logging added
 --               support for RAC and multiple databases
-
+-- v2.4 Changes: new names for jobs
 
 spool sash_repo.log
 prompt Crating SASH_REPO package

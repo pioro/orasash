@@ -1,3 +1,7 @@
+-- (c) Marcin Przepiorowski 2013
+-- v2.4 Initial release
+-- view separated from tables - AWR simulation views
+
 set term off
 spool exit.sql
 select 'exit' from dual where SYS_CONTEXT ('USERENV', 'SESSION_USER') = 'SYS';
