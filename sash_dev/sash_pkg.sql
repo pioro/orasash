@@ -136,6 +136,7 @@ end get_params;
 PROCEDURE get_metrics(v_dblink varchar2) is
    l_dbid number;
    begin
+    begin
      l_dbid:=get_dbid(v_dblink);
      execute immediate 'insert into sash_sysmetric_names select distinct ' || l_dbid || ',METRIC_ID,METRIC_NAME,METRIC_UNIT from sys.v_$sysmetric_history@'||v_dblink || 
      ' where metric_name in (
@@ -167,6 +168,7 @@ PROCEDURE get_metrics(v_dblink varchar2) is
     exception
         when DUP_VAL_ON_INDEX then
             sash_repo.log_message('GET_METRICS', 'Already configured ?','W');
+    end;
 
 
     begin
