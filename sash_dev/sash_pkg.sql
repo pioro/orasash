@@ -202,7 +202,7 @@ PROCEDURE set_dbid(v_dblink varchar2) is
          sash_target;
      if cnt = 0 then 
          insert into 
-            sash_target ( dbid, inst_num )
+            sash_target_static ( dbid, inst_num )
             values (l_dbid, l_inst);
      else
          update sash_target set dbid = l_dbid, inst_num = l_inst;     

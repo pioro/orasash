@@ -336,10 +336,24 @@ create table sash_objs(
 create unique index sash_objs_i on sash_objs
       (dbid, object_id);
 
-create table sash_target (
+create table sash_target_static (
   dbid number,
-  inst_num number
+  inst_num number,
+  table_order number
 );
+
+
+create global temporary table sash_target_dynamic (
+  dbid number,
+  inst_num number,
+  table_order number
+);
+
+
+create or replace view sash_target as 
+select * from (select * from 
+(select * from sash_target_static union all 
+ select * from sash_target_dynamic ) order by TABLE_ORDER) where rownum < 2;
  
 create table sash_targets (
     dbid number,

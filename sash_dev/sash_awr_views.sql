@@ -16,7 +16,7 @@ create or replace view dba_hist_snapshot (SNAP_ID,DBID,INSTANCE_NUMBER,BEGIN_INT
 
 create or replace view dba_hist_sysmetric_history as
 select snap_id, n.dbid, inst_id INSTANCE_NUMBER, begin_time, begin_time + INTSIZE_CSEC/100/24/3600 end_time, INTSIZE_CSEC INTSIZE, GROUP_ID, n.METRIC_ID, METRIC_NAME, VALUE, METRIC_UNIT from SASH_SYSMETRIC_NAMES n,
-sash_sysmetric_history h, sash_target st where n.METRIC_ID = h.METRIC_ID and n.dbid = h.dbid and n.dbid = st.dbid and h.inst_id = st.inst_num order by begin_time;
+sash_sysmetric_history h, sash_target st where n.METRIC_ID = h.METRIC_ID and n.dbid = h.dbid and n.dbid = st.dbid order by begin_time;
 
 create or replace view dba_hist_sqlstat as
 select SNAP_ID, s.DBID, INSTANCE_NUMBER, SQL_ID, PLAN_HASH_VALUE, PARSE_CALLS, DISK_READS, DIRECT_WRITES, BUFFER_GETS,
@@ -31,7 +31,7 @@ CLWAIT_DELTA, APWAIT_DELTA, CCWAIT_DELTA, DIRECT_WRITES_DELTA, PLSEXEC_TIME_DELT
 IO_INTERCONNECT_BYTES_DELTA, IO_DISK_BYTES_DELTA, PHYSICAL_READ_REQUESTS_DELTA, PHYSICAL_READ_BYTES_DELTA,
 PHYSICAL_WRITE_REQUESTS_DELTA, PHYSICAL_WRITE_BYTES_DELTA
 from sash_sqlstats s , sash_target st
-where s.INSTANCE_NUMBER = st.inst_num and s.dbid = st.dbid
+where s.dbid = st.dbid
 order by snap_id, INSTANCE_NUMBER;
 
 create or replace view dba_hist_active_sess_history(
@@ -184,7 +184,6 @@ CLIENT_ID
 		CLIENT_ID                	 
 	 from v$active_session_history ash, dba_hist_snapshot s
      where to_char(sample_time,'SS') like '%0'
-	 and ash.inst_id = s.INSTANCE_NUMBER 
 	 and sample_time between BEGIN_INTERVAL_TIME and BEGIN_INTERVAL_TIME + (select nvl(max(value),15) from sash_configuration where param='STATFREQ')/24/60;
 
 
@@ -245,7 +244,7 @@ create or replace view dba_hist_event_histogram (
 ) as 
 select h.SNAP_ID, h.DBID, h.INST_ID ,e.EVENT_ID, NAME, null, WAIT_CLASS, WAIT_TIME_MILLI, WAIT_COUNT
 from sash_event_names e, sash_event_histogram_all h, sash_target t
-where e.dbid = h.dbid and e.event# = h.event# and t.dbid = h.dbid and t.inst_num = h.INST_ID;
+where e.dbid = h.dbid and e.event# = h.event# and t.dbid = h.dbid;
 
 create or replace view dba_hist_sys_time_model (
 SNAP_ID        , 
@@ -257,4 +256,4 @@ VALUE
 )
 as
 select snap_id, m.dbid, INST_ID, m.stat_id, STAT_NAME, value from sash_sys_time_model m, sash_sys_time_name n,  sash_target t
-where m.STAT_ID = n.STAT_ID and t.dbid = m.dbid and t.inst_num = m.INST_ID;
+where m.STAT_ID = n.STAT_ID and t.dbid = m.dbid;
