@@ -32,7 +32,7 @@ BEGIN
   DBMS_EPG.set_dad_attribute (
     dad_name   => 'sash',
     attr_name  => 'database-username',
-    attr_value => 'SASH24RC1');
+    attr_value => 'SASH24RC2');
 END;
 /
 

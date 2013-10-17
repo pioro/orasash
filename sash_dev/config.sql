@@ -20,7 +20,12 @@ spool off
 
 WHENEVER SQLERROR CONTINUE NONE 
 
-connect &SASH_USER/&SASH_PASS
+undef ENTER_SASH_TNS
+col sash_tns noprint new_value SASH_TNS
+accept ENTER_SASH_TNS prompt "Enter TNS alias to connect to database - required for 12c plugable DB [leave it empty to use SID]?"
+select case when nvl('&&ENTER_SASH_TNS','x') = 'x' then '' else '@' || nvl('&&ENTER_SASH_TNS','') end  sash_tns from dual;
+
+connect &SASH_USER/&SASH_PASS&SASH_TNS
 set term off
 spool exit.sql
 select 'exit' from dual where SYS_CONTEXT ('USERENV', 'SESSION_USER') != upper('&SASH_USER');

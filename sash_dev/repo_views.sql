@@ -77,7 +77,7 @@ as
    select * from sash31;
 
 create or replace view v$active_session_history as
-       select
+       select 
          ash.dbid            ,
 		 ash.inst_id		 ,
          ash.sample_time     ,
@@ -157,7 +157,7 @@ create or replace view v$active_session_history as
          e.event# = ash.event# and
          e.dbid = st.dbid and
          ash.inst_id = st.inst_num and
-         ash.dbid = e.dbid ;
+         ash.dbid = st.dbid ;
 
 create or replace view v$sqltext_with_newlines as 
      select 
