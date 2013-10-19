@@ -45,7 +45,7 @@ CREATE OR REPLACE PACKAGE sash_pkg AS
     function get_dbid (v_dblink varchar2) return number ;
     function get_version (v_dblink varchar2) return varchar2 ;
     procedure set_dbid ( v_dblink varchar2)  ;
-    procedure set_dbid ( v_dbid number)  ;
+--    procedure set_dbid ( v_dbid number)  ;
     procedure collect_metric(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
     procedure get_metrics(v_dblink varchar2) ;
     procedure collect_iostat(v_hist_samp_id number, v_dblink varchar2, vinstance number) ;
@@ -196,8 +196,10 @@ PROCEDURE set_dbid(v_dblink varchar2) is
    l_dblink varchar2(40);
    begin
      l_dblink := replace(v_dblink,'-','_'); 
-     execute immediate 'select dbid  from sys.v_$database@'||l_dblink into l_dbid;
-     execute immediate 'select instance_number from sys.v_$instance@'||l_dblink into l_inst;
+--     execute immediate 'select dbid  from sys.v_$database@'||l_dblink into l_dbid;
+--     execute immediate 'select instance_number from sys.v_$instance@'||l_dblink into l_inst;
+
+     execute immediate 'select dbid, inst_num from sash_targets where db_link = :1' into l_dbid, l_inst using v_dblink;
      select count(*) into cnt from 
          sash_target;
      if cnt = 0 then 
@@ -205,23 +207,23 @@ PROCEDURE set_dbid(v_dblink varchar2) is
             sash_target_static ( dbid, inst_num )
             values (l_dbid, l_inst);
      else
-         update sash_target set dbid = l_dbid, inst_num = l_inst;     
+         update sash_target_static set dbid = l_dbid, inst_num = l_inst;     
      end if;
 end set_dbid;
 
-PROCEDURE set_dbid( v_dbid number) is
-   cnt number;
-   begin 
-     select count(*) into cnt from 
-         sash_target;
-     if cnt = 0 then 
-         insert into 
-            sash_target ( dbid )
-            values (v_dbid);
-     else
-         update sash_target set dbid = v_dbid;     
-     end if;
-end set_dbid;
+--PROCEDURE set_dbid( v_dbid number) is
+--   cnt number;
+--   begin 
+--     select count(*) into cnt from 
+--         sash_target;
+--     if cnt = 0 then 
+--         insert into 
+--            sash_target ( dbid )
+--            values (v_dbid);
+--     else
+--         update sash_target set dbid = v_dbid;     
+--     end if;
+--end set_dbid;
 
 
 

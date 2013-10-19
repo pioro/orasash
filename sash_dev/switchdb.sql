@@ -14,7 +14,7 @@ prompt
 accept INST_NUM prompt "Switch to instance with INST_NUM "
 
 begin
- update sash_target set dbid = '&DBID', inst_num = '&INST_NUM';
+ update sash_target_static set dbid = '&DBID', inst_num = '&INST_NUM';
  commit;
 
 

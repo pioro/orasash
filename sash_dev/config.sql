@@ -40,6 +40,7 @@ set term off
 
 @repo_helpers.sql
 @repo_schema.sql
+@repo_triggers.sql
 @repo_views.sql
 @sash_repo.sql
 @sash_pkg.sql

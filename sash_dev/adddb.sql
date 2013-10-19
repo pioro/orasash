@@ -4,6 +4,13 @@ SET HEAD OFF
 SET VER OFF
 set feedback off
 
+
+prompt ##################################################################################################
+prompt For non multitenant databases use unique database name and instance name
+prompt For multitenant - use PDB name as database name and CDB name as a instance name
+prompt ##################################################################################################
+prompt
+
 accept DBNAME prompt "Enter database name " 
 
 accept INST_NUM default 1 prompt "Enter number of instances [default 1]"
@@ -12,7 +19,7 @@ SET TERMOUT OFF
 
 spool instance.sql
 select 'accept HOST' || rownum || ' prompt "Enter host name for instance number ' || rownum || ' "' from all_source where rownum <= &INST_NUM;
-select 'accept INST' || rownum || ' default ' || decode('&INST_NUM',1,'&DBNAME', '&DBNAME' || rownum) || ' prompt "Enter instance name for instance number ' 
+select 'accept INST' || rownum || ' default ' || decode('&INST_NUM',1,'&DBNAME', '&DBNAME' || rownum) || ' prompt "Enter instance name (or CDB for 12c) for instance number ' 
        || rownum || ' [ default ' || decode('&INST_NUM',1,'&DBNAME', '&DBNAME' || rownum) ||' ] "' from all_source where rownum <= &INST_NUM;
 spool off
 

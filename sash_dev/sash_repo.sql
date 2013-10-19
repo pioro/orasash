@@ -385,7 +385,7 @@ v_check number;
 s_version sash_targets.version%TYPE;
 
 begin
-    if ( v_version = '' ) then 
+    if ( v_version = '' or v_version is null ) then 
     	v_dblink_target:='(DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST =' || v_host || ')(PORT = ' || v_port || ')))(CONNECT_DATA = (SERVICE_NAME = ' || v_db_name || ')(INSTANCE_NAME = ' || v_sid ||')))';
     else 
 	-- for 9i can't test if service / instance will work
@@ -400,8 +400,12 @@ begin
             log_message('add_db', 'no db link - moving forward ' || v_dblink  ,'W');
     end;
     execute immediate 'create database link ' || v_dblink || ' connect to sash identified by ' || v_sash_pass || ' using ''' || v_dblink_target || '''';
-    execute immediate 'select dbid from sys.v_$database@' || v_dblink into v_dbid;
-	execute immediate 'select version from v$instance@' || v_dblink into s_version;
+    execute immediate 'select version from v$instance@' || v_dblink into s_version;
+    if (substr(s_version,1,2) > '11') then
+    	execute immediate 'select con_dbid from sys.v_$database@' || v_dblink into v_dbid;
+    else	
+    	execute immediate 'select dbid from sys.v_$database@' || v_dblink into v_dbid;
+    end if;
     select count(*) into v_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num;
     if v_check = 0 then 
         insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, coalesce(v_version, s_version), v_cpu_count);
@@ -428,7 +432,8 @@ end;
 FUNCTION get_dbid(v_dblink varchar2) return number is
     l_dbid number;
     begin
-      execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+      --execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+      execute immediate 'select dbid  from sash_targets where db_link = :1' into l_dbid using v_dblink;
       return l_dbid;
 end get_dbid;
 
@@ -463,7 +468,7 @@ begin
         dbms_scheduler.create_job(job_name => 'sash_pkg_get_all_' || v_inst_num || '_' || v_dbid,
                               job_type=>'PLSQL_BLOCK',
                               job_action=> vwhat,
-                              start_date=>to_date(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,'SSSSS'),
+                              start_date=>to_date(mod(trunc((to_char(sysdate,'SSSSS')+v_startmin)/v_startmin)*v_startmin,86399),'SSSSS'),
                               repeat_interval=>'FREQ = MINUTELY; INTERVAL = ' || v_getall,
                               enabled=>true);
         log_message('add_instance_job','adding scheduler job sash_pkg_get_all_' || v_inst_num || '_' || v_dbid,'I');

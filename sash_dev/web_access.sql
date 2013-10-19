@@ -60,7 +60,7 @@ END;
 BEGIN
   DBMS_EPG.authorize_dad (
     dad_name => 'sash',
-    user     => 'SASH24RC1');
+    user     => 'SASH24RC2');
 END;
 /
 
