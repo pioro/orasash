@@ -82,8 +82,11 @@ end configure_db;
 
 FUNCTION get_dbid(v_dblink varchar2) return number is
     l_dbid number;
+    l_dblink varchar2(40);
     begin
-      execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+        l_dblink := replace(v_dblink,'-','_');
+      --execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+	execute immediate 'select dbid  from sash_targets where db_link = :1' into l_dbid using l_dblink;
       return l_dbid;
 end get_dbid;
 
@@ -199,7 +202,7 @@ PROCEDURE set_dbid(v_dblink varchar2) is
 --     execute immediate 'select dbid  from sys.v_$database@'||l_dblink into l_dbid;
 --     execute immediate 'select instance_number from sys.v_$instance@'||l_dblink into l_inst;
 
-     execute immediate 'select dbid, inst_num from sash_targets where db_link = :1' into l_dbid, l_inst using v_dblink;
+     execute immediate 'select dbid, inst_num from sash_targets where db_link = :1' into l_dbid, l_inst using l_dblink;
      select count(*) into cnt from 
          sash_target;
      if cnt = 0 then 
