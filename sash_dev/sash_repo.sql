@@ -99,6 +99,7 @@ begin
 --    delete from SASH_SQLSTATS where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
     delete from SASH_IO_SYSTEM_EVENT where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
     delete from SASH_SYSMETRIC_HISTORY where snap_id in (select HIST_SAMPLE_ID from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays);
+    delete from SASH_HIST_SAMPLE where HIST_DATE < sysdate - l_minusdays;
     commit;
 
 exception

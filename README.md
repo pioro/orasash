@@ -10,27 +10,18 @@ Change log:
 
 Change Log:
 
-2.3.1
-repo_schema.sql
-- new column in sashX table - osuser varchar2(30)
-- new column in sash_event_names - event_id  number
-- change in v$active_session_history view definition for following columns qc_instance_id,qc_session_id,qc_session_serial#
+2.4-rc2
 
-sash_pkg.sql
-- changes related to new columns
+12c support added, 
+multiuser support - default DBID is used to limit output of v$active_session_history to one database only.
+There is one default DBID per schema but each session temporary switch DBID to other database using sessdb.sql script.
+Default database for all users an be changed using switchdb.sql,
+all issues related to rc1 fixed
 
-sash_repo.sql
-- using DBID as a part of job name
-- support for same database name on different hosts
-
-installation script
-- fix of hardcoded sash schema
-- some other minor fixes
-
-
-If you want to keep old data with new version of sash you need to do all 3 changes from repo_schema.sql manually.
-
-
+File changes:
+- sessdb.sql - new file - switch DBID in session
+- sash_pkg.sql, sash_repo.sql - changes realted to multiuser support
+- adddb.sql - changes related to 12c DB 
 
 2.4-rc1
 
@@ -73,6 +64,28 @@ repo_schema.sql
 
 switchdb.sql / current.sql
 - instance switch added
+
+
+2.3.1
+repo_schema.sql
+- new column in sashX table - osuser varchar2(30)
+- new column in sash_event_names - event_id  number
+- change in v$active_session_history view definition for following columns qc_instance_id,qc_session_id,qc_session_serial#
+
+sash_pkg.sql
+- changes related to new columns
+
+sash_repo.sql
+- using DBID as a part of job name
+- support for same database name on different hosts
+
+installation script
+- fix of hardcoded sash schema
+- some other minor fixes
+
+
+If you want to keep old data with new version of sash you need to do all 3 changes from repo_schema.sql manually.
+
 
 
 upgarde: TODO from 2.3.1 to 2.4 without data loss
