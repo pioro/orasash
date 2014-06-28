@@ -100,10 +100,11 @@ end get_version;
 PROCEDURE get_users(v_dblink varchar2) is
     l_dbid number;
     begin
-      execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+	  l_dbid:=get_dbid(v_dblink);
       execute immediate 'insert into sash_users 
                (dbid, username, user_id)
-               select ' || l_dbid || ',username,user_id from dba_users@'||v_dblink;
+               select ' || l_dbid || ',username,user_id from dba_users@'||v_dblink ||
+               ' u where user_id not in (select user_id from sash_users where dbid = ' || l_dbid || ')';
     exception
         when DUP_VAL_ON_INDEX then
             sash_repo.log_message('GET_USERS', 'Already configured ?','W');
@@ -112,24 +113,22 @@ end get_users;
 PROCEDURE get_latch(v_dblink varchar2) is
  l_dbid number;
  begin
-    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+   	l_dbid:=get_dbid(v_dblink);
     execute immediate 'insert into sash_latch (dbid, latch#, name) select ' || l_dbid || ',latch#, name from sys.v_$latch@'||v_dblink;
-    commit;
 end get_latch; 
  
 procedure get_stats(v_dblink varchar2) is
  l_dbid number;
  begin
-    execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+    l_dbid:=get_dbid(v_dblink);
     execute immediate 'insert into sash_stats select ' || l_dbid || ', STATISTIC#, name, 0 from sys.v_$sysstat@'||v_dblink;
-    commit;
 end get_stats;
  
  
 PROCEDURE get_params(v_dblink varchar2) is
    l_dbid number;
    begin
-     execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
+     l_dbid:=get_dbid(v_dblink);
      execute immediate 'insert into sash_params ( dbid, name, value) select ' || l_dbid || ',name,value from sys.v_$parameter@'||v_dblink;
     exception
         when DUP_VAL_ON_INDEX then
@@ -199,8 +198,6 @@ PROCEDURE set_dbid(v_dblink varchar2) is
    l_dblink varchar2(40);
    begin
      l_dblink := replace(v_dblink,'-','_'); 
---     execute immediate 'select dbid  from sys.v_$database@'||l_dblink into l_dbid;
---     execute immediate 'select instance_number from sys.v_$instance@'||l_dblink into l_inst;
 
      execute immediate 'select dbid, inst_num from sash_targets where db_link = :1' into l_dbid, l_inst using l_dblink;
      select count(*) into cnt from 
@@ -214,21 +211,6 @@ PROCEDURE set_dbid(v_dblink varchar2) is
      end if;
 end set_dbid;
 
---PROCEDURE set_dbid( v_dbid number) is
---   cnt number;
---   begin 
---     select count(*) into cnt from 
---         sash_target;
---     if cnt = 0 then 
---         insert into 
---            sash_target ( dbid )
---            values (v_dbid);
---     else
---         update sash_target set dbid = v_dbid;     
---     end if;
---end set_dbid;
-
-
 
 PROCEDURE get_data_files(v_dblink varchar2) is
     l_dbid number;
@@ -239,17 +221,12 @@ PROCEDURE get_data_files(v_dblink varchar2) is
   
  begin
      l_dbid:=get_dbid(v_dblink);
-     sql_stat:= 'select '|| l_dbid ||', file_name, file_id, tablespace_name from dba_data_files@'||v_dblink;
-     open sash_cur FOR sql_stat; 
-     loop
-         fetch sash_cur into sash_rec;
-         exit when sash_cur%notfound;	 
-         insert into sash_data_files ( dbid, file_name, file_id, tablespace_name ) values
-                 ( l_dbid, 
-                  sash_rec.file_name, 
-                  sash_rec.file_id, 
-                  sash_rec.tablespace_name );
-    end loop;
+     sql_stat:= 'select /*+DRIVING_SITE(f) */ :1, file_name, file_id, tablespace_name from dba_data_files@'||v_dblink ||
+     ' f where file_id not in (select file_id from sash_data_files where dbid = :2)';
+     execute immediate 'MERGE INTO sash_data_files l USING dba_data_files@'||v_dblink || ' r ON (l.file_id = r.file_id and l.dbid = :1)
+                        WHEN MATCHED THEN UPDATE SET l.file_name = r.file_name WHERE l.dbid = :2  
+                        WHEN NOT MATCHED THEN INSERT (dbid, file_name, file_id, tablespace_name) VALUES (:3, r.file_name, r.file_id, r.tablespace_name)'
+     using l_dbid,l_dbid,l_dbid;
     exception
         when DUP_VAL_ON_INDEX then
             sash_repo.log_message('GET_DATA_FILES', 'Already configured ?','W');		 
@@ -870,6 +847,8 @@ end collect_other;
           select hist_id_seq.nextval into l_hist_samp_id from dual;
           l_ver:=substr(sash_pkg.get_version(v_dblink),0,2);
           l_dbid:=get_dbid(v_dblink);
+	  get_users(v_dblink);
+	  get_data_files(v_dblink);
           get_sqlids(l_dbid, v_inst_num);
           get_sqltxt(l_dbid,v_dblink);
           get_sqlstats(l_hist_samp_id, l_dbid,v_dblink, v_inst_num);
