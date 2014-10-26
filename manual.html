@@ -104,6 +104,53 @@ Enter SASH password on target database sash
 Database added.
 "------------------------------------------------------------------------------------"
 </pre>
+<h3>Managing multidatabase repository</h3>
+If you added more than one database to the repository there is concept of current database. 
+All SASH views limit data to the database defined as current and allow DBA to query views like in single database repository.
+
+To display a current database the follwing script can be used:
+
+<pre>
+SQL> @currentdb.sql
+
+List of configured databases
+
+DBNAME                               DBID HOST                             INST_NUM CURRENT_DB
+------------------------------ ---------- ------------------------------ ---------- ----------
+test122                        3501342205 192.168.1.46                            1 *
+testse                         4169104998 oraclese                                1
+</pre>
+
+To switch a current database to other one the following script can be used:
+
+<pre>
+SQL> @switchdb.sql
+
+DBNAME                               DBID HOST                             INST_NUM CURRENT_DB
+------------------------------ ---------- ------------------------------ ---------- ----------
+test122                        3501342205 192.168.1.46                            1 *
+testse                         4169104998 oraclese                                1
+
+Switch to database with DBID 4169104998
+
+Switch to instance with INST_NUM 1
+
+Database switched.
+
+DBNAME                               DBID HOST                             INST_NUM CURRENT_DB
+------------------------------ ---------- ------------------------------ ---------- ----------
+test122                        3501342205 192.168.1.46                            1
+testse                         4169104998 oraclese                                1 *
+SQL> @currentdb.sql
+
+List of configured databases
+
+DBNAME                               DBID HOST                             INST_NUM CURRENT_DB
+------------------------------ ---------- ------------------------------ ---------- ----------
+test122                        3501342205 192.168.1.46                            1
+testse                         4169104998 oraclese                                1 *
+</pre>
+
 <h3>Manuall configuration</h3>
 If for any reason adddb.sql can't be used steps specified below allow expirienced user to manually configure new database
 To add database(s) instance(s) to repository using following package can be used:
