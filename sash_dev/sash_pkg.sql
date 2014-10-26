@@ -400,7 +400,7 @@ begin
                         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
                        from sys.v_$sqlstats@' || v_dblink || ' sql
                        where (sql.sql_id, sql.plan_hash_value) in ( select sql_id, SQL_PLAN_HASH_VALUE from sash_hour_sqlid t)';
-        elsif (l_ver = '11.2') then
+        elsif ((l_ver = '11.2') or (l_ver = '12.1')) then
     sql_stat:='select /*+driving_site(sql) */  :1, :2, :3,
                sql_id,  plan_hash_value, parse_calls, disk_reads,
                direct_writes, buffer_gets, rows_processed, serializable_aborts,
