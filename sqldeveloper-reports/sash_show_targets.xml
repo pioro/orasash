@@ -1,0 +1,68 @@
+<!--
+  
+  Author: Ernst Leber MT AG, Ratingen Germany ernst.leber@gmail.com
+  Version 0.9 02.07.2014 initial create
+          1.0 05.02.2015 Mark current database
+
+
+-->
+<?xml version="1.0" encoding="UTF-8" ?>
+<displays>
+<display id="c8796ea9-0146-1000-8004-c0a83863d517" type="" style="Table" enable="true">
+	<name><![CDATA[Show Targets]]></name>
+	<description><![CDATA[]]></description>
+	<tooltip><![CDATA[]]></tooltip>
+	<drillclass><![CDATA[]]></drillclass>
+	<CustomValues>
+		<TYPE>horizontal</TYPE>
+	</CustomValues>
+	<query>
+		<sql><![CDATA[SELECT decode(tars.dbid,NULL,NULL,'YES') Curr,tar.dbid,tar.host,tar.port, tar.dbname, tar.sid,tar.inst_num, tar.db_link, tar.version, tar.cpu_count
+		  FROM sash_targets tar
+		    left outer join sash_target_static tars 
+		        on tar.DBID = tars.DBID
+		           and tar.INST_NUM = tars.INST_NUM ORDER BY tar.dbid]]></sql>
+	</query>
+		<pdf version="VERSION_1_7" compression="CONTENT">
+			<docproperty title="null" author="null" subject="null" keywords="null" />
+			<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+			<column>
+				<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+				<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+				<blob blob="NONE" zip="false" />
+			</column>
+			<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+			<header enable="false" generatedate="false">
+				<data>
+				
+					
+					
+					
+					null																								</data>
+			</header>
+			<footer enable="false" generatedate="false">
+				<data value="null" />
+			</footer>
+			<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+				<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+			</security>
+			<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+		</pdf>
+  <item reload="true" reloadparent="false" removeFromParent="false">
+    <title>Set as current database</title>
+    <prompt type="confirm">
+      <label>Set as current database</label>
+    </prompt>
+    <sql><![CDATA[BEGIN update sash_target_static set dbid=#DBID#, inst_num=#INST_NUM#;COMMIT; END;]]></sql>
+    <help>Set as current database v$active_session_history will show only data of this database</help>
+  </item>
+  <item reload="true" reloadparent="true" removeFromParent="false">
+    <title>Delete Target</title>
+    <prompt type="confirm">
+      <label>Delete target database</label>
+    </prompt>
+    <sql><![CDATA[BEGIN delete from sash_targets where dbid=#DBID# and  inst_num=#INST_NUM#;COMMIT; END;]]></sql>
+    <help>Set as current database v$active_session_history will show only data of this database</help>
+  </item>
+</display>
+</displays>
