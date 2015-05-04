@@ -400,7 +400,7 @@ begin
             log_message('add_db', 'no db link - moving forward ' || v_dblink  ,'W');
     end;
     execute immediate 'create database link ' || v_dblink || ' connect to sash identified by ' || v_sash_pass || ' using ''' || v_dblink_target || '''';
-    execute immediate 'select version from v$instance@' || v_dblink into s_version;
+    execute immediate 'select version from sys.v_$instance@' || v_dblink into s_version;
     if (substr(s_version,1,2) > '11') then
     	execute immediate 'select con_dbid from sys.v_$database@' || v_dblink into v_dbid;
     else	
