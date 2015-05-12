@@ -106,6 +106,7 @@ where
     s.ksuudlui <> 69 and
     bitand(s.ksspaflg,1)!=0 and
     bitand(s.ksuseflg,1)!=0 and
+    s.ksusesqi <> '4fvtx87mdw40u' and -- skip sash query
     (  (
         /* status Active - seems inactive & "on cpu"=> not on CPU */
         s.ksusetim != 0  and  /* on CPU  */

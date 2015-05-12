@@ -392,7 +392,7 @@ begin
     	v_dblink_target:='(DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST =' || v_host || ')(PORT = ' || v_port || ')))(CONNECT_DATA = (SID = ' || v_sid || ')))';
     end if;
     --v_dblink := v_db_name || v_inst_num || replace(substr(v_host,1,8),'.','_');
-    v_dblink := substr(v_db_name || '_' || replace(replace(v_host,'.','_'),'-','_'),1,30);
+    v_dblink := substr(v_db_name || '_' || replace(replace(replace(v_host,'.','_'),' ',''),'-','_'),1,30);
     begin
         execute immediate 'drop database link ' || v_dblink;
         dbms_output.put_line('Link dropped');

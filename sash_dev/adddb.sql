@@ -32,7 +32,7 @@ accept SASHPASS prompt "Enter SASH password on target database "
 set term off
 --- set term off
 column f_st new_value v_dblink
-select substr('&DBNAME' || '_' || replace('&HOST1','.','_'),1,30) f_st from dual;
+select substr('&DBNAME' || '_' || replace(replace('&HOST1','.','_'),' ',''),1,30) f_st from dual;
 
 
 spool setup.sql
