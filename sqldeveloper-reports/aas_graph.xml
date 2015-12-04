@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<displays>
+<display id="1a10787a-0146-1000-8002-0a000d142160" type="" style="Chart" enable="true">
+	<name><![CDATA[AAS-graph]]></name>
+	<description><![CDATA[]]></description>
+	<tooltip><![CDATA[]]></tooltip>
+	<drillclass><![CDATA[null]]></drillclass>
+	<CustomValues>
+		<PLOT_HGRID_WIDTH>THINNER</PLOT_HGRID_WIDTH>
+		<XAXIS_TICK_LABEL_AUTO_ROTATE>true</XAXIS_TICK_LABEL_AUTO_ROTATE>
+		<Y1AXIS_SCALE_INCREMENT>10.0</Y1AXIS_SCALE_INCREMENT>
+		<Y2AXIS_SCALE_MAXIMUM>80.0</Y2AXIS_SCALE_MAXIMUM>
+		<Y1AXIS_LINE_WIDTH>THINNEST</Y1AXIS_LINE_WIDTH>
+		<Y1AXIS_SCALE_MAXIMUM_AUTOMATIC>true</Y1AXIS_SCALE_MAXIMUM_AUTOMATIC>
+		<PLOT_SERIES_OPTIONS_FITLINE_TYPE>\,NONE,NONE,NONE,NONE,NONE</PLOT_SERIES_OPTIONS_FITLINE_TYPE>
+		<Y1AXIS_TITLE_ALIGNMENT>CENTER</Y1AXIS_TITLE_ALIGNMENT>
+		<LEGEND_LOCATION>AUTOMATIC</LEGEND_LOCATION>
+		<PLOT_SERIES_OPTIONS_COLOR>\,-16777216,-16711936,-13421569,-16711681,-65485</PLOT_SERIES_OPTIONS_COLOR>
+		<Y1AXIS_REFOBJ_COUNT>1</Y1AXIS_REFOBJ_COUNT>
+		<LEGEND_ALIGNMENT>LEFT</LEGEND_ALIGNMENT>
+		<XAXIS_LINE_WIDTH>THINNEST</XAXIS_LINE_WIDTH>
+		<Y1AXIS_REFOBJ_LINE_VALUE>\,0.0</Y1AXIS_REFOBJ_LINE_VALUE>
+		<DATA_MAP_COLUMNS>\,"DTIME",</DATA_MAP_COLUMNS>
+		<Y1AXIS_SCALE_MAXIMUM>10.0</Y1AXIS_SCALE_MAXIMUM>
+		<XAXIS_TITLE_ALIGNMENT>CENTER</XAXIS_TITLE_ALIGNMENT>
+		<PLOT_DATALABELS>false</PLOT_DATALABELS>
+		<XAXIS_TICK_LABEL_ROTATE>HORIZONTAL</XAXIS_TICK_LABEL_ROTATE>
+		<Y1AXIS_LOGARITHMIC_BASE>BASE_10</Y1AXIS_LOGARITHMIC_BASE>
+		<TYPE>BAR_VERT_STACK</TYPE>
+		<GRID_WIDTH>THINNER</GRID_WIDTH>
+		<PLOT_DATALABELS_BAR_POSITION>ABOVE</PLOT_DATALABELS_BAR_POSITION>
+		<FOOTNOTE_ALIGNMENT>LEFT</FOOTNOTE_ALIGNMENT>
+		<XAXIS_TICK_LABEL_SKIP_MODE>AUTOMATIC</XAXIS_TICK_LABEL_SKIP_MODE>
+		<Y1AXIS_REFOBJ_VISIBLE>\,false</Y1AXIS_REFOBJ_VISIBLE>
+		<DATA_MAP_COLNAMES>\,"CNT","DTIME","WAIT_CLASS"</DATA_MAP_COLNAMES>
+		<DATA_MAP_SERIES>\,"WAIT_CLASS",</DATA_MAP_SERIES>
+		<Y2AXIS_LOGARITHMIC_BASE>BASE_10</Y2AXIS_LOGARITHMIC_BASE>
+		<DATA_MAP_COUNT>2</DATA_MAP_COUNT>
+		<STYLE>Default</STYLE>
+		<TITLE_ALIGNMENT>LEFT</TITLE_ALIGNMENT>
+		<Y1AXIS_SCALE_MINIMUM_AUTOMATIC>true</Y1AXIS_SCALE_MINIMUM_AUTOMATIC>
+		<Y2AXIS_TICK_LABEL_ROTATE>HORIZONTAL</Y2AXIS_TICK_LABEL_ROTATE>
+		<Y2AXIS_SCALE_MINIMUM>10.0</Y2AXIS_SCALE_MINIMUM>
+		<Y2AXIS_LINE_WIDTH>THINNEST</Y2AXIS_LINE_WIDTH>
+		<DATA_MAP_VALUES>\,"CNT",</DATA_MAP_VALUES>
+		<Y1AXIS_TICK_LABEL_ROTATE>HORIZONTAL</Y1AXIS_TICK_LABEL_ROTATE>
+		<Y1AXIS_REFOBJ_TEXT>\,</Y1AXIS_REFOBJ_TEXT>
+		<Y1AXIS_REFOBJ_WIDTH>\,THINNEST</Y1AXIS_REFOBJ_WIDTH>
+		<Y2AXIS_SCALE_INCREMENT>20.0</Y2AXIS_SCALE_INCREMENT>
+		<PLOT_VGRID_WIDTH>THINNER</PLOT_VGRID_WIDTH>
+		<Y2AXIS_TITLE_ALIGNMENT>CENTER</Y2AXIS_TITLE_ALIGNMENT>
+		<SUBTITLE_ALIGNMENT>LEFT</SUBTITLE_ALIGNMENT>
+		<Y1AXIS_REFOBJ_COLOR>\,-16777216</Y1AXIS_REFOBJ_COLOR>
+	</CustomValues>
+	<query>
+		<sql><![CDATA[select dtime, wait_class, 0.001 as cnt from (
+select * from (
+select to_char(to_date(trunc(to_char(sysdate - (:NUM_MIN+1)/24/60,'SSSSS')/15)*15,'SSSSS'),'hh24:mi:ss') dtime, wait_class, 
+decode(wait_class,'User I/O',2,'System I/O',3,'Concurrency',4,'Application',5,'Commit',6,'Configuration',7,'Administrative',8,'Network',9,'Queueing',
+10,'Other',11,'Scheduler',12,'Cluster',13) wait_order from 
+(select distinct wait_class wait_class from SASH_EVENT_NAMES where wait_class <> 'Idle')
+union all
+select to_char(to_date(trunc(to_char(sysdate - (:NUM_MIN+1)/24/60,'SSSSS')/15)*15,'SSSSS'),'hh24:mi:ss') dtime, 'ON CPU', 1 wait_order from dual
+union all
+select to_char(to_date(trunc(to_char(sysdate - (:NUM_MIN+1)/24/60,'SSSSS')/15)*15,'SSSSS'),'hh24:mi:ss') dtime, 'null', 0 wait_order from dual
+)
+order by wait_order
+)
+union all
+select to_char(to_date(dt*15,'SSSSS'),'hh24:mi:ss') dtime, wait_class, decode(wait_class,'null',0.001,cnt/15)   from (
+ select dt,
+ decode(session_state,'WAITING',wait_class,'ON CPU') wait_class,
+ count(*) cnt
+ from
+ (
+ select trunc(to_char(sample_time,'SSSSS')/15) dt, session_state, wait_class
+ from v$active_session_history
+ where sample_time > sysdate - :NUM_MIN/24/60 
+ union all
+  select  trunc((to_char(sysdate,'SSSSS')-level*15)/15) dt, 'WAITING', 'null'
+  from    dual
+  connect by level <= (select :NUM_MIN*60/15 from dual)
+ )
+ --and v$active_session_history.SESSION_TYPE = 'FOREGROUND'
+ group by dt, decode(session_state,'WAITING',wait_class,'ON CPU')
+ order by 1
+)]]></sql>
+		<binds>
+			<bind id="NUM_MIN">
+				<prompt><![CDATA[NUM_MIN]]></prompt>
+				<tooltip><![CDATA[NUM_MIN]]></tooltip>
+				<value><![CDATA[30]]></value>
+				<bracket><![CDATA[null]]></bracket>
+			</bind>
+		</binds>
+	</query>
+		<pdf version="VERSION_1_7" compression="CONTENT">
+			<docproperty title="null" author="null" subject="null" keywords="null" />
+			<cell toppadding="2" bottompadding="2" leftpadding="2" rightpadding="2" horizontalalign="LEFT" verticalalign="TOP" wrap="true" />
+			<column>
+				<heading font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="FIRST_PAGE" />
+				<footing font="null" size="10" style="NORMAL" color="-16777216" rowshading="-1" labeling="NONE" />
+				<blob blob="NONE" zip="false" />
+			</column>
+			<table font="null" size="10" style="NORMAL" color="-16777216" userowshading="false" oddrowshading="-1" evenrowshading="-1" showborders="true" spacingbefore="12" spacingafter="12" horizontalalign="LEFT" />
+			<header enable="false" generatedate="false">
+				<data>
+				
+				
+				
+				
+				null																				</data>
+			</header>
+			<footer enable="false" generatedate="false">
+				<data value="null" />
+			</footer>
+			<security enable="false" useopenpassword="false" openpassword="null" encryption="EXCLUDE_METADATA">
+				<permission enable="false" permissionpassword="null" allowcopying="true" allowprinting="true" allowupdating="false" allowaccessdevices="false" />
+			</security>
+			<pagesetup papersize="LETTER" orientation="1" measurement="in" margintop="1.0" marginbottom="1.0" marginleft="1.0" marginright="1.0" />
+		</pdf>
+</display>
+</displays>
