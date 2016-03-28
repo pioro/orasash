@@ -24,7 +24,7 @@ CREATE OR REPLACE PACKAGE sash_repo AS
     procedure set_retention(rtype varchar2);
     procedure log_message(vaction varchar2, vmessage varchar2, vresults varchar2);
     procedure add_instance_job (v_dbname varchar2, v_inst_num number, v_db_link varchar2);
-    procedure remove_instance_job (v_dbname varchar2, v_inst_num number);
+    --procedure remove_instance_job (v_dbname varchar2, v_inst_num number);
 END sash_repo;
 /
 show errors
@@ -381,8 +381,10 @@ v_dblink_target varchar2(4000);
 no_db_link EXCEPTION;
 PRAGMA EXCEPTION_INIT(no_db_link, -2024);
 v_dbid number;
+v_sash_dbid number;
 v_check number;
 s_version sash_targets.version%TYPE;
+v_dblink_check number;
 
 begin
     if ( v_version = '' or v_version is null ) then 
@@ -406,18 +408,26 @@ begin
     else	
     	execute immediate 'select dbid from sys.v_$database@' || v_dblink into v_dbid;
     end if;
-    select count(*) into v_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num;
+    select count(*) into v_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num and db_link = v_dblink;
     if v_check = 0 then 
-        insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, coalesce(v_version, s_version), v_cpu_count);
-    else 
+        -- check for dbid / instance but other name
+        select count(*) into v_dblink_check from sash_targets where dbid = v_dbid and inst_num = v_inst_num;
+        if v_dblink_check > 0 then
+          v_sash_dbid := fakedbid.nextval;
+        else 
+          v_sash_dbid := v_dbid;
+        end if;
+        insert into sash_targets (dbid, host, port, dbname, sid, inst_num, db_link, version, cpu_count, sash_dbid) values (v_dbid, v_host, v_port, v_db_name, v_sid, v_inst_num, v_dblink, coalesce(v_version, s_version), v_cpu_count, v_sash_dbid);
+    else
         log_message('add_db', 'Database ' || v_db_name || ' instance ' || v_inst_num || ' already added','W');	
     end if;
 end;
 
+/*
 procedure remove_instance_job (v_dbname varchar2, v_inst_num number)  is
  v_dbid number;
 begin
- select dbid into v_dbid from sash_targets where dbname = v_dbname and inst_num = v_inst_num; 
+ v_dbid  where dbname = v_dbname and inst_num = v_inst_num; 
  dbms_scheduler.drop_job(job_name => 'sash_pkg_collect_' || v_inst_num || '_' || v_dbid);
  log_message('remove_instance_job','removing scheduler job sash_pkg_collect_' || v_inst_num || '_' || v_dbid ,'I');
  dbms_scheduler.drop_job(job_name => 'sash_pkg_get_all_' || v_inst_num || '_' || v_dbid);
@@ -426,6 +436,8 @@ exception when NO_DATA_FOUND then
  log_message('remove_instance_job','removing scheduler job sash_pkg_get_all__' || v_inst_num || '_' || v_dbid || ' failed','E');
  RAISE_APPLICATION_ERROR(-20033,'SASH remove_instance_job errored ' || SUBSTR(SQLERRM, 1 , 1000));	
 end;
+*/
+
 
 -- this is needed to avoid cross reference
 
@@ -433,7 +445,7 @@ FUNCTION get_dbid(v_dblink varchar2) return number is
     l_dbid number;
     begin
       --execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
-      execute immediate 'select dbid  from sash_targets where db_link = :1' into l_dbid using v_dblink;
+      execute immediate 'select sash_dbid  from sash_targets where db_link = :1' into l_dbid using v_dblink;
       return l_dbid;
 end get_dbid;
 

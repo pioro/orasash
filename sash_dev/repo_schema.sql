@@ -59,11 +59,11 @@ create table sash1 (
                 sql_id              varchar2(13),
                 sql_opcode          number,
                 SQL_EXEC_START      date,
-				SQL_EXEC_ID         number,
+		SQL_EXEC_ID         number,
                 PLSQL_ENTRY_OBJECT_ID       number,
-				PLSQL_ENTRY_SUBPROGRAM_ID   number,
-				PLSQL_OBJECT_ID     number,
-				PLSQL_SUBPROGRAM_ID number,                
+		PLSQL_ENTRY_SUBPROGRAM_ID   number,
+		PLSQL_OBJECT_ID     number,
+		PLSQL_SUBPROGRAM_ID number,                
                 event#              number,
                 seq#                number,
                 p1                  number,
@@ -74,7 +74,7 @@ create table sash1 (
                 current_obj#        number,
                 current_file#       number,
                 current_block#      number,
-				current_row#      	number,
+		current_row#      	number,
                 program             varchar2(64),
                 module              varchar2(48),
                 MODULE_HASH         number,
@@ -87,7 +87,7 @@ create table sash1 (
                 QC                  number,
                 sample_id           number,
                 terminal            varchar2(30),
-				inst_id		        number
+		inst_id		        number
 );
 
 -- create rest of active sessions tables to simulate poor man partitioning
@@ -184,9 +184,10 @@ create unique index sash_params_i on sash_params( dbid , name );
 create table sash_event_names( 
       dbid number, 
       event# number, 
-	  event_id  number,
+      event_id  number,
       wait_class varchar2(64), 
-      name varchar2(64)
+      name varchar2(64),
+      wait_class_id number
 	);
 
 create unique index sash_event_names_i on sash_event_names( event# , dbid );
@@ -358,13 +359,14 @@ select * from (select * from
 create table sash_targets (
     dbid number,
     host varchar2(30),
-	port number,
-	dbname varchar2(30),
-	sid varchar2(8),
-	inst_num number,
+    port number,
+    dbname varchar2(30),
+    sid varchar2(8),
+    inst_num number,
     db_link varchar(4000),
-	version varchar2(20),
-    cpu_count number						
+    version varchar2(20),
+    cpu_count number,
+    sash_dbid number
  );
 
 create unique index sash_targets_i on sash_targets ( host,sid );

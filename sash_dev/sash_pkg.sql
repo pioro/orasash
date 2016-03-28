@@ -86,7 +86,7 @@ FUNCTION get_dbid(v_dblink varchar2) return number is
     begin
         l_dblink := replace(v_dblink,'-','_');
       --execute immediate 'select dbid  from sys.v_$database@'||v_dblink into l_dbid;
-	execute immediate 'select dbid  from sash_targets where db_link = :1' into l_dbid using l_dblink;
+	execute immediate 'select sash_dbid  from sash_targets where db_link = :1' into l_dbid using l_dblink;
       return l_dbid;
 end get_dbid;
 
@@ -199,9 +199,8 @@ PROCEDURE set_dbid(v_dblink varchar2) is
    begin
      l_dblink := replace(v_dblink,'-','_'); 
 
-     execute immediate 'select dbid, inst_num from sash_targets where db_link = :1' into l_dbid, l_inst using l_dblink;
-     select count(*) into cnt from 
-         sash_target;
+     execute immediate 'select sash_dbid, inst_num from sash_targets where db_link = :1' into l_dbid, l_inst using l_dblink;
+     select count(*) into cnt from sash_target;
      if cnt = 0 then 
          insert into 
             sash_target_static ( dbid, inst_num )
@@ -251,7 +250,7 @@ PROCEDURE get_event_names(v_dblink varchar2) is
           
        begin
           l_dbid:=get_dbid(v_dblink);
-          execute immediate 'insert into sash_event_names ( dbid, event#, name, wait_class ) select distinct '|| l_dbid ||', event#, name, wait_class from sys.v_$event_name@' || v_dblink;
+          execute immediate 'insert into sash_event_names ( dbid, event#, name, wait_class, wait_class_id ) select distinct '|| l_dbid ||', event#, name, wait_class, wait_class_id from sys.v_$event_name@' || v_dblink;
          exception
             when DUP_VAL_ON_INDEX then
                     sash_repo.log_message('GET_EVENT_NAMES', 'Already configured ?','W');
@@ -577,7 +576,7 @@ PROCEDURE collect_ash(v_sleep number, loops number, v_dblink varchar2, vinstance
                     )
                   values 
                        ( 
-                        sash_rec.DBID,
+                        l_dbid,  
                         sash_rec.sample_time,
                         sash_rec.SESSION_ID,
                         sash_rec.SESSION_STATE,

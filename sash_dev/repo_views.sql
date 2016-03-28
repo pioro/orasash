@@ -128,7 +128,7 @@ create or replace view v$active_session_history as
  		 ash.p1 p1text,
 		 ash.p2 p2text, 
 		 ash.p3 p3text,
-		 null wait_class_id,
+		 e.wait_class_id wait_class_id,
 		 TIME_WAITED TIME_WAITED,
 		 decode(ksuseblocker, 4294967295,to_number(null),4294967294,to_number(null), 4294967293,to_number(null), 4294967292,to_number(null),4294967291,  to_number(null),bitand(ksuseblocker, 65535)) BLOCKING_SESSION,
 		 decode(ksuseblocker,4294967295,'UNKNOWN',  4294967294, 'UNKNOWN',4294967293,'UNKNOWN',4294967292,'NO HOLDER',  4294967291,'NOT IN WAIT','VALID') BLOCKING_SESSION_STATUS,
@@ -174,7 +174,7 @@ create or replace view v$instance as select
         host     host_name,
         sid      instance_name
      from sash_targets sts
-     where (dbid,inst_num) = ( select dbid,inst_num from sash_target);
+     where (sash_dbid,inst_num) = ( select dbid,inst_num from sash_target);
 	 
 create or replace view v$database as select 
         dbid	 dbid,
@@ -182,7 +182,7 @@ create or replace view v$database as select
         sid      instance_name,
         dbname   name
      from sash_targets 
-     where (dbid, inst_num) = ( select dbid, inst_num from sash_target);	 
+     where (sash_dbid, inst_num) = ( select dbid, inst_num from sash_target);	 
 	 
 
 create or replace view v$sql_plan as SELECT null address, null hash_value, sql_id, plan_hash_value, null child_number,

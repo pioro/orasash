@@ -12,11 +12,11 @@ end;
 
 
 col current_db format a10
-select s.dbname, s.dbid, s.host, s.inst_num, case when t.dbid is null then ' ' else '*' end current_db from sash_targets s, sash_target t where s.dbid = t.dbid(+)
+select s.dbname, s.dbid, s.sash_dbid, s.host, s.inst_num, case when t.dbid is null then ' ' else '*' end current_db from sash_targets s, sash_target t where s.sash_dbid = t.dbid(+)
 and s.inst_num = t.inst_num(+) order by dbid, inst_num;
 
 prompt 
-accept DBID prompt "Switch to database with DBID "
+accept DBID prompt "Switch to database with SASH_DBID "
 
 prompt 
 accept INST_NUM prompt "Switch to instance with INST_NUM "
@@ -25,7 +25,7 @@ declare
 i number;
 begin
 
- select count(*) into i from sash_targets where  dbid = '&DBID' and inst_num = &INST_NUM ;
+ select count(*) into i from sash_targets where  sash_dbid = '&DBID' and inst_num = &INST_NUM ;
  if (i > 0) then
  	update sash_target_static set dbid = '&DBID', inst_num = &INST_NUM;
         :output := 'Database switched.';
@@ -43,5 +43,5 @@ set head off
 select :output as result from dual;
 set head on
 
-select s.dbname, s.dbid, s.host, s.inst_num, case when t.dbid is null then ' ' else '*' end current_db from sash_targets s, sash_target t where s.dbid = t.dbid(+) 
+select s.dbname, s.dbid, s.sash_dbid, s.host, s.inst_num, case when t.dbid is null then ' ' else '*' end current_db from sash_targets s, sash_target t where s.sash_dbid = t.dbid(+) 
 and s.inst_num = t.inst_num(+) order by dbid, inst_num;
