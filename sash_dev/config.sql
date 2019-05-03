@@ -9,6 +9,9 @@ select 'exit' from dual where SYS_CONTEXT ('USERENV', 'SESSION_USER') != upper('
 spool off
 @exit.sql
 
+
+@iscdb.sql
+
 prompt "------------------------------------------------------------------------------------"
 prompt  Creating repository owner and job kill function using SYS user                     
 prompt "------------------------------------------------------------------------------------"

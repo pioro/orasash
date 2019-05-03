@@ -36,6 +36,7 @@ Prompt Create sequence
 
 create sequence hist_id_seq;				
 create sequence log_id_seq;				
+create sequence fakedbid;				
 
 Prompt Create tables
 
