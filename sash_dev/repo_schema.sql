@@ -36,6 +36,7 @@ Prompt Create sequence
 
 create sequence hist_id_seq;				
 create sequence log_id_seq;				
+create sequence fakedbid;
 
 Prompt Create tables
 
@@ -47,7 +48,7 @@ create table sash1 (
                 session_id          number,
                 session_state       varchar2(20),
                 session_serial#     number,
-				OSUSER              VARCHAR2(30),
+		    OSUSER              VARCHAR2(128),
                 session_type        number,                
                 user_id             number,
                 command             number,
@@ -76,7 +77,7 @@ create table sash1 (
                 current_block#      number,
 		current_row#      	number,
                 program             varchar2(64),
-                module              varchar2(48),
+                module              varchar2(64),
                 MODULE_HASH         number,
                 action              varchar2(64), 
                 ACTION_HASH         number,
@@ -85,6 +86,10 @@ create table sash1 (
                 SERVICE_NAME        varchar2(64),
                 FIXED_TABLE_SEQUENCE    number,
                 QC                  number,
+                BLOCKING_INSTANCE  number,
+                BLOCKING_SESSION   number,
+                FINAL_BLOCKING_INSTANCE number,
+                FINAL_BLOCKING_SESSION number,
                 sample_id           number,
                 terminal            varchar2(30),
 		inst_id		        number
