@@ -9,7 +9,7 @@ Installation steps
 
 2. Connect to target database as user SYS and execute the following script. 
 
-targ_userview_<db_version>.sql 
+sqlplus / as sysdba @target_user_all_versions.sql 
 
 3. Run the following script as user SYS on repository database 
 
