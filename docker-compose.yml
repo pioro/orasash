@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  sash:
+    build:
+      context: .  
+      dockerfile: docker/Dockerfile  
+    ports:
+      - "XXXX:1521" # XXXX port to access the database
+    environment:
+      - ORACLE_PWD=oracle_admin_password 
+      - SASH_PWD=sash_repository_password
+    volumes:
+      - path/to/database:/opt/oracle/oradata  
+    restart: unless-stopped
