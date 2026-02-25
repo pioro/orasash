@@ -126,12 +126,12 @@ create table sash_stats
 create table sash_instance_stats (
 	dbid number,
 	inst_id number,
-	sample_time date,
+	SNAP_ID number,
 	STATISTIC#  NUMBER,
 	VALUE NUMBER
 );	
 
-create index sash_instance_stats_id1 on sash_instance_stats(sample_time, STATISTIC#, dbid);		
+create index sash_instance_stats_id1 on sash_instance_stats(SNAP_ID, STATISTIC#, dbid);		
 	
  create table sash_hist_sample(
 	hist_sample_id  number,
@@ -149,8 +149,8 @@ create index sash_hist_sample_i1 on sash_hist_sample (dbid, instance_number, his
       operation       varchar2(30),
       options         varchar2(255),
       object_node     varchar2(128),
-      object_owner    varchar2(30),
-      object_name     varchar2(30),
+      object_owner    varchar2(128),
+      object_name     varchar2(128),
       object_instance numeric,
       object_type     varchar2(30),
       optimizer       varchar2(255),
